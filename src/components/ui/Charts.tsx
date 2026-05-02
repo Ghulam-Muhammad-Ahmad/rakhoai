@@ -7,22 +7,29 @@ export function Donut({ data, size = 132, thickness = 16 }: {
   const r = (size - thickness) / 2;
   const c = 2 * Math.PI * r;
   const total = data.reduce((s, d) => s + d.value, 0);
-  let off = 0;
+  const segments = data.reduce<{
+    label: string;
+    color: string;
+    len: number;
+    offset: number;
+  }[]>((items, d) => {
+    const offset = items.reduce((sum, item) => sum + item.len, 0);
+    const len = total > 0 ? (d.value / total) * c : 0;
+    return [...items, { label: d.label, color: d.color, len, offset }];
+  }, []);
+
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--neutral-100)" strokeWidth={thickness} />
-      {data.map((d, i) => {
-        const len = (d.value / total) * c;
-        const dasharray = `${len} ${c - len}`;
-        const el = (
-          <circle key={i} cx={size/2} cy={size/2} r={r} fill="none"
-            stroke={d.color} strokeWidth={thickness}
+      {segments.map((segment) => {
+        const dasharray = `${segment.len} ${c - segment.len}`;
+        return (
+          <circle key={segment.label} cx={size/2} cy={size/2} r={r} fill="none"
+            stroke={segment.color} strokeWidth={thickness}
             strokeDasharray={dasharray}
-            strokeDashoffset={-off}
+            strokeDashoffset={-segment.offset}
             transform={`rotate(-90 ${size/2} ${size/2})`} />
         );
-        off += len;
-        return el;
       })}
       <text x="50%" y="48%" textAnchor="middle" fontFamily="var(--font-display)" fontSize="20" fontWeight="500" fill="var(--neutral-900)">{total.toLocaleString()}</text>
       <text x="50%" y="62%" textAnchor="middle" fontFamily="var(--font-body)" fontSize="11" fill="var(--neutral-500)">total</text>

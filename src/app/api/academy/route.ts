@@ -38,7 +38,12 @@ export async function POST(req: NextRequest) {
 
   const existing = await prisma.academy.findUnique({ where: { ownerId: dbUser.id } });
   if (existing) {
-    return NextResponse.json({ academy: existing });
+    const academy = await prisma.academy.update({
+      where: { id: existing.id },
+      data: { name, country, currency },
+    });
+
+    return NextResponse.json({ academy });
   }
 
   const academy = await prisma.academy.create({

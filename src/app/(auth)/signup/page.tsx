@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { signUp } from '@/app/(auth)/actions'
 import { GoogleButton } from '@/components/auth/GoogleButton'
 import { useSearchParams } from 'next/navigation'
@@ -148,6 +148,8 @@ function SignupForm() {
 
 export default function SignupPage() {
   return (
-    <SignupForm />
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
   )
 }

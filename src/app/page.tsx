@@ -130,7 +130,7 @@ function Features() {
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
         <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--primary-600)", marginBottom: 14 }}>Features</div>
         <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 44, letterSpacing: "-0.02em", lineHeight: 1.1, color: "var(--neutral-900)", margin: "0 0 16px", maxWidth: 720 }}>A second pair of eyes on every student.</h2>
-        <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--neutral-600)", maxWidth: 640, margin: "0 0 48px" }}>Rakho reads attendance, fees, and engagement signals across your branches and quietly flags who's drifting — before they're gone.</p>
+        <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--neutral-600)", maxWidth: 640, margin: "0 0 48px" }}>Rakho reads attendance, fees, and engagement signals across your branches and quietly flags who&apos;s drifting — before they&apos;re gone.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
           {feats.map(f => (
             <div key={f.title} style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: 18, padding: 28 }}>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 import { signIn } from '@/app/(auth)/actions'
@@ -107,6 +107,8 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <LoginForm />
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }
