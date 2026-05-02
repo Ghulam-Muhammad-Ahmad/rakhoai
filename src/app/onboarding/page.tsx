@@ -3,17 +3,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Building2, Globe, DollarSign, ArrowRight, Loader2 } from "lucide-react";
+import countries from "world-countries";
 
-const COUNTRY_CURRENCY: Record<string, string> = {
-  Pakistan: "PKR",
-  India: "INR",
-  UAE: "AED",
-  Nigeria: "NGN",
-  Philippines: "PHP",
-  Other: "USD",
-};
-
-const COUNTRIES = Object.keys(COUNTRY_CURRENCY);
+const countryOptions = countries
+  .map((item) => ({
+    name: item.name.common,
+    currency: Object.keys(item.currencies ?? {})[0] ?? "USD",
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -24,8 +21,9 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
 
   function handleCountryChange(val: string) {
+    const selected = countryOptions.find((item) => item.name === val);
     setCountry(val);
-    setCurrency(COUNTRY_CURRENCY[val] ?? "USD");
+    setCurrency(selected?.currency ?? "USD");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -96,8 +94,10 @@ export default function OnboardingPage() {
               className="flex-1 border-none bg-transparent text-sm text-[var(--neutral-800)] outline-none"
             >
               <option value="" disabled>Select your country</option>
-              {COUNTRIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+              {countryOptions.map((item) => (
+                <option key={item.name} value={item.name}>
+                  {item.name}
+                </option>
               ))}
             </select>
           </div>
