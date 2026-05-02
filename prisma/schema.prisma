@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id         String   @id @default(uuid())
+  supabaseId String   @unique
+  email      String   @unique
+  name       String?
+  createdAt  DateTime @default(now())
+  academy    Academy?
+}
+
+model Academy {
+  id        String   @id @default(uuid())
+  ownerId   String   @unique
+  name      String
+  country   String
+  currency  String   @default("USD")
+  createdAt DateTime @default(now())
+  owner     User     @relation(fields: [ownerId], references: [id])
+}
