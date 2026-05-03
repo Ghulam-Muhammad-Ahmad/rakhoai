@@ -5,13 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, MessageCircleHeart, Layers, FileText,
-  Building2, UserCog, Settings, Search, LifeBuoy, Bell, LogOut,
+  Building2, UserCog, Settings, Search, LifeBuoy, Bell, LogOut, Upload,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/dashboard",     icon: LayoutDashboard,    label: "Risk overview" },
   { href: "/students",      icon: Users,              label: "Students" },
+  { href: "/uploads/new",   icon: Upload,             label: "Upload data" },
   { href: "/interventions", icon: MessageCircleHeart, label: "Interventions" },
   { href: "/cohorts",       icon: Layers,             label: "Cohorts" },
   { href: "/reports",       icon: FileText,           label: "Reports" },

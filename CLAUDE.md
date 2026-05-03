@@ -106,6 +106,15 @@ User can override any mapping via dropdown; save as reusable template.
 
 Multi-tenant: every table has `academy_id` FK. No single-tenant isolation.
 
+### Migration Security Requirements
+
+- When creating Prisma migrations for any tenant-owned or user-owned table, include Row Level Security in the same migration.
+- Enable RLS with `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`.
+- Add owner-scoped policies for `SELECT`, `INSERT`, and `UPDATE` at minimum; add `DELETE` only when the product explicitly supports deletion.
+- Policies must scope access through the academy/user ownership chain using `academy_id` / `academyId` and the authenticated Supabase user id.
+- If a policy references Supabase-only helpers such as `auth.uid()`, make the migration safe for Prisma's plain PostgreSQL shadow database by creating a no-op compatibility shim only when the `auth` schema/function is missing.
+- After adding or editing migrations, run `npx prisma migrate dev` and confirm the shadow database applies cleanly.
+
 ---
 
 ## MVP Scope

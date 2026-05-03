@@ -1,3 +1,32 @@
+-- Prisma replays migrations against a plain PostgreSQL shadow database.
+-- Supabase provides auth.uid(), but the shadow database does not, so create
+-- a no-op shim only when that function is missing.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_namespace
+    WHERE nspname = 'auth'
+  ) THEN
+    CREATE SCHEMA auth;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'auth'
+      AND p.proname = 'uid'
+      AND pg_get_function_identity_arguments(p.oid) = ''
+  ) THEN
+    CREATE FUNCTION auth.uid()
+    RETURNS uuid
+    LANGUAGE sql
+    STABLE
+    AS 'SELECT NULL::uuid';
+  END IF;
+END $$;
+
 -- Enable RLS on User table
 ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
 

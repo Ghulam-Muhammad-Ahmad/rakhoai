@@ -24,4 +24,28 @@ model Academy {
   currency  String   @default("USD")
   createdAt DateTime @default(now())
   owner     User     @relation(fields: [ownerId], references: [id])
+  uploads   Upload[]
+}
+
+model Upload {
+  id          String       @id @default(uuid())
+  academyId   String
+  fileName    String
+  fileUrl     String?
+  status      UploadStatus @default(PENDING)
+  rowCount    Int?
+  headers     Json?
+  sampleRows  Json?
+  uploadedAt  DateTime     @default(now())
+  processedAt DateTime?
+  academy     Academy      @relation(fields: [academyId], references: [id])
+}
+
+enum UploadStatus {
+  PENDING
+  PREVIEW_READY
+  MAPPED
+  PROCESSING
+  PROCESSED
+  FAILED
 }

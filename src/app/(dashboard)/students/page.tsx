@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Search, Upload, Plus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Avatar from "@/components/ui/Avatar";
 import RiskBadge from "@/components/ui/RiskBadge";
 import { STUDENTS, type RiskLevel } from "@/lib/data";
@@ -9,6 +10,7 @@ import { STUDENTS, type RiskLevel } from "@/lib/data";
 type Filter = "all" | RiskLevel;
 
 export default function StudentsPage() {
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
 
@@ -32,7 +34,7 @@ export default function StudentsPage() {
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.02em", margin: "4px 0 0" }}>Students</h1>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--neutral-200)", background: "#fff", color: "var(--neutral-800)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => router.push("/uploads/new")} style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--neutral-200)", background: "#fff", color: "var(--neutral-800)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
             <Upload size={14} /> Import CSV
           </button>
           <button style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: "none", background: "var(--primary-500)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
