@@ -122,7 +122,8 @@ CREATE TABLE "RiskAssessment" (
   "aiModel"           TEXT        NOT NULL,
   "computedAt"        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT "RiskAssessment_pkey"          PRIMARY KEY ("id"),
-  CONSTRAINT "RiskAssessment_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT "RiskAssessment_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT "RiskAssessment_uploadId_fkey"  FOREIGN KEY ("uploadId")  REFERENCES "Upload"("id")  ON DELETE SET NULL ON UPDATE CASCADE
 );
 CREATE INDEX "RiskAssessment_studentId_computedAt_idx" ON "RiskAssessment"("studentId","computedAt");
 CREATE INDEX "RiskAssessment_uploadId_idx"              ON "RiskAssessment"("uploadId");
@@ -196,79 +197,136 @@ CREATE POLICY "academy_update_own" ON "Academy"
 -- Upload
 ALTER TABLE "Upload" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "upload_select_own" ON "Upload"
-  FOR SELECT USING ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR SELECT USING (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "Upload"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 CREATE POLICY "upload_insert_own" ON "Upload"
-  FOR INSERT WITH CHECK ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR INSERT WITH CHECK (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "Upload"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 CREATE POLICY "upload_update_own" ON "Upload"
-  FOR UPDATE USING ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "Upload"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 
 -- ColumnMapping
 ALTER TABLE "ColumnMapping" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "column_mapping_select_own" ON "ColumnMapping"
-  FOR SELECT USING ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR SELECT USING (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "ColumnMapping"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 CREATE POLICY "column_mapping_insert_own" ON "ColumnMapping"
-  FOR INSERT WITH CHECK ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR INSERT WITH CHECK (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "ColumnMapping"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 CREATE POLICY "column_mapping_update_own" ON "ColumnMapping"
-  FOR UPDATE USING ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "ColumnMapping"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 
 -- Student
 ALTER TABLE "Student" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "student_select_own" ON "Student"
-  FOR SELECT USING ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR SELECT USING (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "Student"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 CREATE POLICY "student_insert_own" ON "Student"
-  FOR INSERT WITH CHECK ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR INSERT WITH CHECK (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "Student"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 CREATE POLICY "student_update_own" ON "Student"
-  FOR UPDATE USING ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "Student"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 
 -- RiskAssessment (scoped via Student → Academy)
 ALTER TABLE "RiskAssessment" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "risk_select_own" ON "RiskAssessment"
-  FOR SELECT USING ("studentId" IN (
-    SELECT id FROM "Student" WHERE "academyId" IN (
-      SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
-    )
+  FOR SELECT USING (EXISTS (
+    SELECT 1 FROM "Student" s
+    JOIN "Academy" a ON a.id = s."academyId"
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE s.id = "RiskAssessment"."studentId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 CREATE POLICY "risk_insert_own" ON "RiskAssessment"
-  FOR INSERT WITH CHECK ("studentId" IN (
-    SELECT id FROM "Student" WHERE "academyId" IN (
-      SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
-    )
+  FOR INSERT WITH CHECK (EXISTS (
+    SELECT 1 FROM "Student" s
+    JOIN "Academy" a ON a.id = s."academyId"
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE s.id = "RiskAssessment"."studentId"
+      AND u."supabaseId" = auth.uid()::text
+  ));
+CREATE POLICY "risk_update_own" ON "RiskAssessment"
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM "Student" s
+    JOIN "Academy" a ON a.id = s."academyId"
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE s.id = "RiskAssessment"."studentId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 
 -- Action
 ALTER TABLE "Action" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "action_select_own" ON "Action"
-  FOR SELECT USING ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR SELECT USING (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "Action"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 CREATE POLICY "action_insert_own" ON "Action"
-  FOR INSERT WITH CHECK ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR INSERT WITH CHECK (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "Action"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 CREATE POLICY "action_update_own" ON "Action"
-  FOR UPDATE USING ("academyId" IN (
-    SELECT id FROM "Academy" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "supabaseId" = auth.uid()::text)
+  FOR UPDATE USING (EXISTS (
+    SELECT 1 FROM "Academy" a
+    JOIN "User" u ON u.id = a."ownerId"
+    WHERE a.id = "Action"."academyId"
+      AND u."supabaseId" = auth.uid()::text
   ));
 
--- AiUsageLog (insert-only by service role; no user-level RLS needed)
+-- AiUsageLog
 ALTER TABLE "AiUsageLog" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "ai_log_insert_service" ON "AiUsageLog"
   FOR INSERT WITH CHECK (true);
+CREATE POLICY "ai_log_select_own" ON "AiUsageLog"
+  FOR SELECT USING (
+    "academyId" IS NULL OR EXISTS (
+      SELECT 1 FROM "Academy" a
+      JOIN "User" u ON u.id = a."ownerId"
+      WHERE a.id = "AiUsageLog"."academyId"
+        AND u."supabaseId" = auth.uid()::text
+    )
+  );
