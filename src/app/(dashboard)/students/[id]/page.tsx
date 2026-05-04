@@ -8,6 +8,7 @@ import { ActionStatusPanel } from "@/components/students/ActionStatusPanel";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getStudentDetail } from "@/lib/students/risk";
+import { getCurrencySymbol } from "@/lib/currency";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,7 +29,7 @@ export default async function StudentProfilePage({ params }: Params) {
   const dbUser = await getAuthUserWithAcademy(user.id);
   if (!dbUser.academy) redirect("/onboarding");
 
-  const student = await getStudentDetail(dbUser.academy.id, id);
+  const student = await getStudentDetail(dbUser.academy.id, id, getCurrencySymbol(dbUser.academy.currency));
   if (!student) notFound();
 
   const trend = ["U1", "U2", "U3", "U4", "U5", "Now"].map((month) => ({

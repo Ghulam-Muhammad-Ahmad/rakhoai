@@ -9,6 +9,7 @@ import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
 import { getDashboardCharts } from "@/lib/dashboard/charts";
 import { getStudentRiskList } from "@/lib/students/risk";
+import { getCurrencySymbol } from "@/lib/currency";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -20,13 +21,14 @@ export default async function DashboardPage() {
   const dbUser = await getAuthUserWithAcademy(user.id);
   if (!dbUser?.academy) redirect("/onboarding");
 
+  const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
   const summary = await getDashboardSummary(dbUser.academy.id);
   const charts = await getDashboardCharts(dbUser.academy.id);
   const atRisk = await getStudentRiskList(dbUser.academy.id, {
     band: "AT_RISK",
     sort: "riskScore",
     direction: "desc",
-  });
+  }, currencySymbol);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -50,7 +52,7 @@ export default async function DashboardPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
         <StatCard tinted eyebrow="Total students" value={summary.totalStudents.toLocaleString()} sub={dbUser.academy.name} />
         <StatCard eyebrow="High risk" value={summary.highRiskCount.toLocaleString()} sub={`${summary.mediumRiskCount} medium risk`} deltaTone="down" />
-        <StatCard eyebrow="Revenue at risk" value={`$${summary.estimatedRevenueAtRisk.toLocaleString()}`} sub="high-risk active fees" />
+        <StatCard eyebrow="Revenue at risk" value={`${currencySymbol}${summary.estimatedRevenueAtRisk.toLocaleString()}`} sub="high-risk active fees" />
         <StatCard eyebrow="Students saved" value={summary.studentsSavedThisMonth.toLocaleString()} sub="this month" />
       </div>
 
