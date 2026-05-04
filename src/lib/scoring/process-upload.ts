@@ -16,6 +16,9 @@ export async function processMappedUpload(uploadId: string, academyId: string) {
     .single() as { data: UploadRow | null; error: { message: string } | null };
 
   if (error || !upload || upload.academyId !== academyId) throw new Error("Upload not found");
+  if (upload.status === "PROCESSED") {
+    return { processed: upload.rowCount ?? 0, scored: upload.rowCount ?? 0, skipped: true };
+  }
   if (upload.status !== "MAPPED") throw new Error("Upload must be mapped before processing");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

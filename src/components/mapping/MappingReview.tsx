@@ -51,6 +51,7 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
   const [templateName, setTemplateName] = useState("");
   const [setAsDefault, setSetAsDefault] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"idle" | "saving" | "processing">("idle");
 
   function handleFieldChange(sourceColumn: string, newField: string | null) {
     setMappings((prev) =>
@@ -75,6 +76,7 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
       return;
     }
 
+    setPhase("saving");
     startTransition(async () => {
       const res = await fetch(`/api/uploads/${uploadId}/map`, {
         method: "PATCH",
@@ -87,15 +89,18 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
           saveAsTemplate: saveTemplate,
           templateName: saveTemplate ? templateName.trim() : undefined,
           setAsDefault: saveTemplate ? setAsDefault : undefined,
+          processNow: true,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
+        setPhase("idle");
         setError(data.error ?? "Failed to save mapping.");
         return;
       }
 
+      setPhase("processing");
       router.push(`/dashboard`);
     });
   }
@@ -287,7 +292,7 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
           {isPending ? (
             <>
               <span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} />
-              Saving…
+              {phase === "processing" ? "Scoring students..." : "Saving mapping..."}
             </>
           ) : (
             <>
