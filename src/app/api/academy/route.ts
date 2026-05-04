@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/db/prisma";
+import { db } from "@/lib/db/client";
+import crypto from "node:crypto";
 
 const schema = z.object({
   name: z.string().min(1),
@@ -26,29 +27,54 @@ export async function POST(req: NextRequest) {
 
   const { name, country, currency } = parsed.data;
 
-  const dbUser = await prisma.user.upsert({
-    where: { supabaseId: user.id },
-    update: {},
-    create: {
+  // Find or create User record
+  const { data: existingUser } = await db
+    .from("User")
+    .select("id")
+    .eq("supabaseId", user.id)
+    .maybeSingle();
+
+  let userId: string;
+  if (existingUser) {
+    userId = existingUser.id;
+  } else {
+    const newId = crypto.randomUUID();
+    const { error } = await db.from("User").insert({
+      id: newId,
       supabaseId: user.id,
       email: user.email!,
       name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? null,
-    },
-  });
-
-  const existing = await prisma.academy.findUnique({ where: { ownerId: dbUser.id } });
-  if (existing) {
-    const academy = await prisma.academy.update({
-      where: { id: existing.id },
-      data: { name, country, currency },
     });
+    if (error) return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+    userId = newId;
+  }
 
+  // Find or upsert Academy
+  const { data: existingAcademy } = await db
+    .from("Academy")
+    .select("id")
+    .eq("ownerId", userId)
+    .maybeSingle();
+
+  if (existingAcademy) {
+    const { data: academy, error } = await db
+      .from("Academy")
+      .update({ name, country, currency })
+      .eq("id", existingAcademy.id)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: "Failed to update academy" }, { status: 500 });
     return NextResponse.json({ academy });
   }
 
-  const academy = await prisma.academy.create({
-    data: { ownerId: dbUser.id, name, country, currency },
-  });
+  const { data: academy, error } = await db.from("Academy").insert({
+    id: crypto.randomUUID(),
+    ownerId: userId,
+    name,
+    country,
+    currency,
+  }).select().single();
 
+  if (error) return NextResponse.json({ error: "Failed to create academy" }, { status: 500 });
   return NextResponse.json({ academy }, { status: 201 });
 }

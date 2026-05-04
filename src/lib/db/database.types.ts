@@ -8,6 +8,8 @@ export type Json =
 
 export type Database = {
   public: {
+    Views: Record<string, never>
+    Functions: Record<string, never>
     Tables: {
       User: {
         Row: {
@@ -31,6 +33,7 @@ export type Database = {
           name?: string | null
           createdAt?: string
         }
+        Relationships: []
       }
       Academy: {
         Row: {
@@ -57,6 +60,7 @@ export type Database = {
           currency?: string
           createdAt?: string
         }
+        Relationships: []
       }
       Upload: {
         Row: {
@@ -101,6 +105,7 @@ export type Database = {
           uploadedAt?: string
           processedAt?: string | null
         }
+        Relationships: []
       }
       ColumnMapping: {
         Row: {
@@ -127,6 +132,7 @@ export type Database = {
           isDefault?: boolean
           createdAt?: string
         }
+        Relationships: []
       }
       Student: {
         Row: {
@@ -189,6 +195,7 @@ export type Database = {
           createdAt?: string
           updatedAt?: string
         }
+        Relationships: []
       }
       RiskAssessment: {
         Row: {
@@ -230,6 +237,7 @@ export type Database = {
           aiModel?: string
           computedAt?: string
         }
+        Relationships: []
       }
       Action: {
         Row: {
@@ -271,6 +279,7 @@ export type Database = {
           createdAt?: string
           updatedAt?: string
         }
+        Relationships: []
       }
       AiUsageLog: {
         Row: {
@@ -327,6 +336,7 @@ export type Database = {
           metadataJson?: Json | null
           createdAt?: string
         }
+        Relationships: []
       }
     }
     Enums: {
