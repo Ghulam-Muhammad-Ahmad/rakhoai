@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:scoring": "node tests/ai-usage-log.test.mjs && node tests/scoring-normalize.test.mjs && node tests/scoring-rules.test.mjs && node tests/dashboard-summary.test.mjs"
+    "test:scoring": "node tests/ai-usage-log.test.mjs && node tests/scoring-normalize.test.mjs && node tests/scoring-rules.test.mjs && node tests/dashboard-summary.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/retention-workflow.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
@@ -21,6 +21,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-dropzone": "^15.0.0",
+    "recharts": "^3.8.1",
     "world-countries": "^5.1.0",
     "xlsx": "^0.18.5",
     "zod": "^4.4.2"

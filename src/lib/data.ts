@@ -25,17 +25,6 @@ export const STUDENTS: Student[] = [
   { id: "SR-1090", name: "Vihaan Iyer",      initials: "VI", tone: "blue",    classLabel: "11 · Math",   attendance: 95, fee: "On time",      risk: "safe",     joined: "Aug 2024", phone: "+91 98••• 41" },
 ];
 
-export const RISK_BREAKDOWN = [
-  { label: "Critical", value: 6,    color: "#B91C1C" },
-  { label: "High",     value: 18,   color: "#DC2626" },
-  { label: "Medium",   value: 42,   color: "#F59E0B" },
-  { label: "Low",      value: 84,   color: "#FCD34D" },
-  { label: "Safe",     value: 1098, color: "#10B981" },
-];
-
-export const RETENTION_TREND = [89, 87, 90, 91, 88, 92, 93, 90, 94, 92, 93, 94];
-export const ATTENDANCE_BARS = [82, 88, 91, 76, 89, 64, 0];
-export const ATTENDANCE_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
 export interface Intervention {
   id: number;

@@ -1,5 +1,18 @@
 "use client";
 
+import {
+  AreaChart as RechartsArea,
+  Area,
+  BarChart as RechartsBar,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
 export function Donut({ data, size = 132, thickness = 16 }: {
   data: { label: string; value: number; color: string }[];
   size?: number; thickness?: number;
@@ -37,51 +50,71 @@ export function Donut({ data, size = 132, thickness = 16 }: {
   );
 }
 
-export function AreaChart({ values, height = 120, color = "var(--primary-500)", fill = "var(--primary-100)" }: {
-  values: number[]; height?: number; color?: string; fill?: string;
+export function AreaChart({ data, height = 140, color = "var(--primary-500)", fill }: {
+  data: { month: string; rate: number }[];
+  height?: number;
+  color?: string;
+  fill?: string;
 }) {
-  const w = 600;
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const range = max - min || 1;
-  const step = w / (values.length - 1);
-  const pts = values.map((v, i) => `${i * step},${height - 10 - ((v - min) / range) * (height - 30)}`);
-  const path = "M" + pts.join(" L");
-  const fillPath = path + ` L${w},${height} L0,${height} Z`;
+  const gradientId = `areaGradient-${color.replace(/[^a-z0-9]/gi, "")}`;
+  const fillColor = fill ?? color;
+  if (data.length === 0) {
+    return (
+      <div style={{ height, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--neutral-400)", fontSize: 13 }}>
+        No data yet
+      </div>
+    );
+  }
   return (
-    <svg viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" style={{ width: "100%", height }}>
-      <path d={fillPath} fill={fill} opacity="0.5" />
-      <path d={path} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      {pts.map((p, i) => {
-        const [x, y] = p.split(",").map(Number);
-        return <circle key={i} cx={x} cy={y} r="3" fill={color} />;
-      })}
-    </svg>
+    <ResponsiveContainer width="100%" height={height}>
+      <RechartsArea data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={fillColor} stopOpacity={0.18} />
+            <stop offset="95%" stopColor={fillColor} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" vertical={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--neutral-500)" }} axisLine={false} tickLine={false} />
+        <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "var(--neutral-500)" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v}%`} />
+        <Tooltip
+          contentStyle={{ border: "1px solid var(--neutral-200)", borderRadius: 8, fontSize: 13, boxShadow: "var(--shadow-xs)" }}
+          formatter={(value) => [`${value}%`, "Retention"]}
+        />
+        <Area type="monotone" dataKey="rate" stroke={color} strokeWidth={2.5} fill={`url(#${gradientId})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+      </RechartsArea>
+    </ResponsiveContainer>
   );
 }
 
-export function BarChart({ values, height = 120, labels }: {
-  values: number[]; height?: number; labels: string[];
+export function BarChart({ data, height = 140 }: {
+  data: { label: string; value: number }[];
+  height?: number;
 }) {
-  const w = 320;
-  const max = Math.max(...values) || 1;
-  const bw = (w - (values.length - 1) * 8) / values.length;
+  if (data.length === 0) {
+    return (
+      <div style={{ height, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--neutral-400)", fontSize: 13 }}>
+        No data yet
+      </div>
+    );
+  }
+  const max = Math.max(...data.map((d) => d.value));
   return (
-    <svg viewBox={`0 0 ${w} ${height + 18}`} style={{ width: "100%", height: height + 18 }}>
-      {values.map((v, i) => {
-        const h = (v / max) * height;
-        const x = i * (bw + 8);
-        const y = height - h;
-        const isMax = v === max;
-        return (
-          <g key={i}>
-            <rect x={x} y={y} width={bw} height={h} rx={3}
-                  fill={isMax ? "var(--primary-500)" : "var(--primary-200)"} />
-            <text x={x + bw / 2} y={height + 14} textAnchor="middle"
-                  fontSize="10" fill="var(--neutral-500)" fontFamily="var(--font-body)">{labels[i]}</text>
-          </g>
-        );
-      })}
-    </svg>
+    <ResponsiveContainer width="100%" height={height}>
+      <RechartsBar data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-100)" vertical={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--neutral-500)" }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--neutral-500)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <Tooltip
+          contentStyle={{ border: "1px solid var(--neutral-200)", borderRadius: 8, fontSize: 13, boxShadow: "var(--shadow-xs)" }}
+          formatter={(value) => [value, "Students"]}
+        />
+        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+          {data.map((entry, index) => (
+            <Cell key={index} fill={entry.value === max ? "var(--primary-500)" : "var(--primary-200)"} />
+          ))}
+        </Bar>
+      </RechartsBar>
+    </ResponsiveContainer>
   );
 }
