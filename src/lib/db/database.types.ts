@@ -64,7 +64,7 @@ export type Database = {
           academyId: string
           fileName: string
           fileUrl: string | null
-          status: string
+          status: Database["public"]["Enums"]["UploadStatus"]
           rowCount: number | null
           headers: Json | null
           sampleRows: Json | null
@@ -78,7 +78,7 @@ export type Database = {
           academyId: string
           fileName: string
           fileUrl?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["UploadStatus"]
           rowCount?: number | null
           headers?: Json | null
           sampleRows?: Json | null
@@ -92,7 +92,7 @@ export type Database = {
           academyId?: string
           fileName?: string
           fileUrl?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["UploadStatus"]
           rowCount?: number | null
           headers?: Json | null
           sampleRows?: Json | null
@@ -142,7 +142,7 @@ export type Database = {
           paymentStatus: string | null
           lastPaymentDate: string | null
           totalSessions: number | null
-          feesAmount: number | null
+          feesAmount: string | null
           subject: string | null
           tutor: string | null
           rawDataJson: Json
@@ -162,7 +162,7 @@ export type Database = {
           paymentStatus?: string | null
           lastPaymentDate?: string | null
           totalSessions?: number | null
-          feesAmount?: number | null
+          feesAmount?: string | null
           subject?: string | null
           tutor?: string | null
           rawDataJson: Json
@@ -182,7 +182,7 @@ export type Database = {
           paymentStatus?: string | null
           lastPaymentDate?: string | null
           totalSessions?: number | null
-          feesAmount?: number | null
+          feesAmount?: string | null
           subject?: string | null
           tutor?: string | null
           rawDataJson?: Json
@@ -196,7 +196,7 @@ export type Database = {
           studentId: string
           uploadId: string | null
           riskScore: number
-          riskBand: string
+          riskBand: Database["public"]["Enums"]["RiskBand"]
           reasonsJson: Json
           recommendedAction: string
           confidence: number
@@ -209,7 +209,7 @@ export type Database = {
           studentId: string
           uploadId?: string | null
           riskScore: number
-          riskBand: string
+          riskBand: Database["public"]["Enums"]["RiskBand"]
           reasonsJson: Json
           recommendedAction: string
           confidence: number
@@ -222,7 +222,7 @@ export type Database = {
           studentId?: string
           uploadId?: string | null
           riskScore?: number
-          riskBand?: string
+          riskBand?: Database["public"]["Enums"]["RiskBand"]
           reasonsJson?: Json
           recommendedAction?: string
           confidence?: number
@@ -238,7 +238,7 @@ export type Database = {
           studentId: string
           type: string
           content: string | null
-          status: string
+          status: Database["public"]["Enums"]["ActionStatus"]
           takenBy: string | null
           takenAt: string | null
           notes: string | null
@@ -251,7 +251,7 @@ export type Database = {
           studentId: string
           type: string
           content?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["ActionStatus"]
           takenBy?: string | null
           takenAt?: string | null
           notes?: string | null
@@ -264,7 +264,7 @@ export type Database = {
           studentId?: string
           type?: string
           content?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["ActionStatus"]
           takenBy?: string | null
           takenAt?: string | null
           notes?: string | null
@@ -303,7 +303,7 @@ export type Database = {
           outputTokens?: number | null
           totalTokens?: number | null
           cacheHit?: boolean
-          status?: string
+          status: string
           errorCode?: string | null
           latencyMs: number
           metadataJson?: Json | null

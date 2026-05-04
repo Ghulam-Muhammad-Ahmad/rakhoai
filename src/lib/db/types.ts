@@ -23,6 +23,9 @@ export type ActionInsert         = Tables["Action"]["Insert"];
 export type AiUsageLogInsert     = Tables["AiUsageLog"]["Insert"];
 
 // Update types
-export type StudentUpdate = Tables["Student"]["Update"];
-export type UploadUpdate  = Tables["Upload"]["Update"];
-export type ActionUpdate  = Tables["Action"]["Update"];
+export type StudentUpdate        = Tables["Student"]["Update"];
+export type UploadUpdate         = Tables["Upload"]["Update"];
+export type ActionUpdate         = Tables["Action"]["Update"];
+export type RiskAssessmentUpdate = Tables["RiskAssessment"]["Update"];
+export type ColumnMappingUpdate  = Tables["ColumnMapping"]["Update"];
+export type AcademyUpdate        = Tables["Academy"]["Update"];
