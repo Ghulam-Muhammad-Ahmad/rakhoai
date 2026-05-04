@@ -1,15 +1,24 @@
-import { prisma } from "@/lib/db/prisma";
+import { db } from "@/lib/db/client";
+import type { UploadRow } from "@/lib/db/types";
 import { MappingResult } from "@/lib/matching";
 import { normalizeRows } from "./normalize";
 import { scoreStudentsWithAi } from "./ai";
 import { persistRiskResults } from "./persist";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const anyDb = db as any;
+
 export async function processMappedUpload(uploadId: string, academyId: string) {
-  const upload = await prisma.upload.findUnique({ where: { id: uploadId } });
-  if (!upload || upload.academyId !== academyId) throw new Error("Upload not found");
+  const { data: upload, error } = await anyDb
+    .from("Upload")
+    .select("*")
+    .eq("id", uploadId)
+    .single() as { data: UploadRow | null; error: { message: string } | null };
+
+  if (error || !upload || upload.academyId !== academyId) throw new Error("Upload not found");
   if (upload.status !== "MAPPED") throw new Error("Upload must be mapped before processing");
 
-  await prisma.upload.update({ where: { id: uploadId }, data: { status: "PROCESSING" } });
+  await anyDb.from("Upload").update({ status: "PROCESSING" }).eq("id", uploadId);
 
   try {
     const rows =
@@ -22,14 +31,15 @@ export async function processMappedUpload(uploadId: string, academyId: string) {
     const results = await scoreStudentsWithAi({ academyId, uploadId, students });
 
     await persistRiskResults({ academyId, uploadId, students, results, model });
-    await prisma.upload.update({
-      where: { id: uploadId },
-      data: { status: "PROCESSED", processedAt: new Date(), rowCount: students.length },
-    });
+    await anyDb.from("Upload").update({
+      status: "PROCESSED",
+      processedAt: new Date().toISOString(),
+      rowCount: students.length,
+    }).eq("id", uploadId);
 
     return { processed: students.length, scored: results.length };
-  } catch (error) {
-    await prisma.upload.update({ where: { id: uploadId }, data: { status: "FAILED" } });
-    throw error;
+  } catch (err) {
+    await anyDb.from("Upload").update({ status: "FAILED" }).eq("id", uploadId);
+    throw err;
   }
 }
