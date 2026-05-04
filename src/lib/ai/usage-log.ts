@@ -35,6 +35,7 @@ export async function logAiUsage(input: AiUsageInput): Promise<void> {
     uploadId: input.uploadId ?? null,
     feature: input.feature,
     model: input.model,
+    provider: "openai",
     requestHash,
     inputTokens: input.inputTokens ?? null,
     outputTokens: input.outputTokens ?? null,
@@ -46,8 +47,13 @@ export async function logAiUsage(input: AiUsageInput): Promise<void> {
     metadataJson: (input.metadata ?? {}) as Json,
   };
 
+  // NOTE: `as any` works around Supabase TS inference issue with PascalCase table names.
+  // Root cause: generated types assume snake_case; fix when regenerating types from live DB.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await db.from("AiUsageLog").insert(row as any);
+  const { error: insertError } = await db.from("AiUsageLog").insert(row as any);
+  if (insertError) {
+    console.error("[logAiUsage] insert failed:", insertError.message, insertError.code);
+  }
 
   if (process.env.AI_USAGE_FILE_LOG === "true") {
     const filePath = process.env.AI_USAGE_LOG_PATH ?? "logs/ai-usage.jsonl";
