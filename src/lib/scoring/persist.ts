@@ -1,52 +1,16 @@
 import { db } from "@/lib/db/client";
+import type { Json, Database } from "@/lib/db/database.types";
 import { CanonicalStudentInput, AiRiskResult } from "./types";
 import { computeRuleScore } from "./rules";
 import crypto from "node:crypto";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const anyDb = db as any;
+type StudentRow = Database["public"]["Tables"]["Student"]["Row"];
+type StudentInsert = Database["public"]["Tables"]["Student"]["Insert"];
+type StudentUpdate = Database["public"]["Tables"]["Student"]["Update"];
+type RiskAssessmentInsert = Database["public"]["Tables"]["RiskAssessment"]["Insert"];
 
 function getStudentResultKey(student: CanonicalStudentInput): string {
   return student.contact ?? student.externalId ?? student.name;
-}
-
-async function findExistingStudentId(
-  academyId: string,
-  student: CanonicalStudentInput
-): Promise<string | null> {
-  if (student.contact) {
-    const { data } = await anyDb
-      .from("Student")
-      .select("id")
-      .eq("academyId", academyId)
-      .eq("contact", student.contact)
-      .order("updatedAt", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (data) return (data as { id: string }).id;
-  }
-
-  if (student.externalId) {
-    const { data } = await anyDb
-      .from("Student")
-      .select("id")
-      .eq("academyId", academyId)
-      .eq("externalId", student.externalId)
-      .order("updatedAt", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (data) return (data as { id: string }).id;
-  }
-
-  const { data } = await anyDb
-    .from("Student")
-    .select("id")
-    .eq("academyId", academyId)
-    .eq("name", student.name)
-    .order("updatedAt", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data as { id: string } | null)?.id ?? null;
 }
 
 export async function persistRiskResults(args: {
@@ -58,13 +22,36 @@ export async function persistRiskResults(args: {
 }) {
   const resultByKey = new Map(args.results.map((r) => [r.studentKey, r]));
 
+  // Load all existing students for this academy in one query
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existingStudents, error: fetchError } = await (db as any)
+    .from("Student")
+    .select("id, contact, externalId, name, updatedAt")
+    .eq("academyId", args.academyId) as { data: Pick<StudentRow, "id" | "contact" | "externalId" | "name" | "updatedAt">[] | null; error: { message: string } | null };
+
+  if (fetchError) throw new Error(`Failed to load existing students: ${fetchError.message}`);
+
+  // Build in-memory lookup maps (contact/externalId/name → student id)
+  const byContact  = new Map<string, string>();
+  const byExternal = new Map<string, string>();
+  const byName     = new Map<string, string>();
+
+  for (const s of existingStudents ?? []) {
+    if (s.contact)    byContact.set(s.contact, s.id);
+    if (s.externalId) byExternal.set(s.externalId, s.id);
+    byName.set(s.name, s.id);
+  }
+
   for (const student of args.students) {
     const key = getStudentResultKey(student);
     const result = resultByKey.get(key);
-    if (!result) continue;
+    if (!result) {
+      console.warn(`[persistRiskResults] No AI result for student key "${key}" — skipping`);
+      continue;
+    }
 
     const now = new Date().toISOString();
-    const studentData = {
+    const studentData: StudentUpdate = {
       academyId: args.academyId,
       uploadId: args.uploadId,
       externalId: student.externalId ?? null,
@@ -79,36 +66,58 @@ export async function persistRiskResults(args: {
       feesAmount: student.feesAmount != null ? String(student.feesAmount) : null,
       subject: student.subject ?? null,
       tutor: student.tutor ?? null,
-      rawDataJson: student.rawData,
+      rawDataJson: student.rawData as Json,
       updatedAt: now,
     };
 
-    const existingId = await findExistingStudentId(args.academyId, student);
+    // Resolve existing student ID from in-memory maps
+    const existingId =
+      (student.contact    && byContact.get(student.contact))    ||
+      (student.externalId && byExternal.get(student.externalId)) ||
+      byName.get(student.name) ||
+      null;
 
     let studentId: string;
     if (existingId) {
-      const { error } = await anyDb.from("Student").update(studentData).eq("id", existingId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: updated, error } = await (db as any)
+        .from("Student")
+        .update(studentData)
+        .eq("id", existingId)
+        .select("id")
+        .single() as { data: Pick<StudentRow, "id"> | null; error: { message: string } | null };
       if (error) throw new Error(`Failed to update student: ${error.message}`);
-      studentId = existingId;
+      if (!updated) throw new Error(`Student ${existingId} was deleted before update`);
+      studentId = updated.id;
     } else {
-      const insert = { ...studentData, id: crypto.randomUUID(), createdAt: now };
-      const { data, error } = await anyDb.from("Student").insert(insert).select("id").single();
-      if (error || !data) throw new Error(`Failed to insert student: ${error?.message}`);
-      studentId = (data as { id: string }).id;
+      const insertData: StudentInsert = { ...studentData, id: crypto.randomUUID(), createdAt: now, name: student.name, academyId: args.academyId, rawDataJson: student.rawData as Json };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (db as any)
+        .from("Student")
+        .insert(insertData)
+        .select("id")
+        .single() as { data: Pick<StudentRow, "id"> | null; error: { message: string } | null };
+      if (error) throw new Error(`Failed to insert student: ${error.message}`);
+      if (!data) throw new Error("Failed to insert student: no row returned (RLS policy may block SELECT after INSERT)");
+      studentId = data.id;
     }
 
-    const { error: raError } = await anyDb.from("RiskAssessment").insert({
+    const raInsert: RiskAssessmentInsert = {
       id: crypto.randomUUID(),
       studentId,
       uploadId: args.uploadId,
       riskScore: result.riskScore,
-      riskBand: result.riskBand,
-      reasonsJson: result.reasons,
+      riskBand: result.riskBand as Database["public"]["Enums"]["RiskBand"],
+      reasonsJson: result.reasons as Json,
       recommendedAction: result.recommendedAction,
       confidence: result.confidence,
       ruleScore: computeRuleScore(student).score,
       aiModel: args.model,
-    });
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: raError } = await (db as any)
+      .from("RiskAssessment")
+      .insert(raInsert) as { error: { message: string } | null };
     if (raError) throw new Error(`Failed to insert risk assessment: ${raError.message}`);
   }
 }

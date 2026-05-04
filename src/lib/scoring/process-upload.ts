@@ -1,15 +1,15 @@
 import { db } from "@/lib/db/client";
-import type { UploadRow } from "@/lib/db/types";
+import type { Database } from "@/lib/db/database.types";
 import { MappingResult } from "@/lib/matching";
 import { normalizeRows } from "./normalize";
 import { scoreStudentsWithAi } from "./ai";
 import { persistRiskResults } from "./persist";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const anyDb = db as any;
+type UploadRow = Database["public"]["Tables"]["Upload"]["Row"];
 
 export async function processMappedUpload(uploadId: string, academyId: string) {
-  const { data: upload, error } = await anyDb
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: upload, error } = await (db as any)
     .from("Upload")
     .select("*")
     .eq("id", uploadId)
@@ -18,7 +18,12 @@ export async function processMappedUpload(uploadId: string, academyId: string) {
   if (error || !upload || upload.academyId !== academyId) throw new Error("Upload not found");
   if (upload.status !== "MAPPED") throw new Error("Upload must be mapped before processing");
 
-  await anyDb.from("Upload").update({ status: "PROCESSING" }).eq("id", uploadId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: processingError } = await (db as any)
+    .from("Upload")
+    .update({ status: "PROCESSING" })
+    .eq("id", uploadId) as { error: { message: string } | null };
+  if (processingError) throw new Error(`Failed to set upload to PROCESSING: ${processingError.message}`);
 
   try {
     const rows =
@@ -31,7 +36,8 @@ export async function processMappedUpload(uploadId: string, academyId: string) {
     const results = await scoreStudentsWithAi({ academyId, uploadId, students });
 
     await persistRiskResults({ academyId, uploadId, students, results, model });
-    await anyDb.from("Upload").update({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).from("Upload").update({
       status: "PROCESSED",
       processedAt: new Date().toISOString(),
       rowCount: students.length,
@@ -39,7 +45,8 @@ export async function processMappedUpload(uploadId: string, academyId: string) {
 
     return { processed: students.length, scored: results.length };
   } catch (err) {
-    await anyDb.from("Upload").update({ status: "FAILED" }).eq("id", uploadId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).from("Upload").update({ status: "FAILED" }).eq("id", uploadId);
     throw err;
   }
 }
