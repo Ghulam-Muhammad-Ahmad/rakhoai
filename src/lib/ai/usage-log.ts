@@ -1,8 +1,9 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import crypto from "node:crypto";
-import { Prisma } from "@/generated/prisma/client";
-import { prisma } from "@/lib/db/prisma";
+import { db } from "@/lib/db/client";
+import type { AiUsageLogInsert } from "@/lib/db/types";
+import type { Json } from "@/lib/db/database.types";
 
 export type AiUsageStatus = "success" | "error" | "cache_hit";
 
@@ -28,7 +29,8 @@ export function hashAiPayload(payload: unknown): string {
 
 export async function logAiUsage(input: AiUsageInput): Promise<void> {
   const requestHash = hashAiPayload(input.payloadForHash);
-  const row = {
+  const row: AiUsageLogInsert = {
+    id: crypto.randomUUID(),
     academyId: input.academyId ?? null,
     uploadId: input.uploadId ?? null,
     feature: input.feature,
@@ -41,10 +43,11 @@ export async function logAiUsage(input: AiUsageInput): Promise<void> {
     status: input.status,
     errorCode: input.errorCode ?? null,
     latencyMs: input.latencyMs,
-    metadataJson: (input.metadata ?? {}) as Prisma.InputJsonValue,
+    metadataJson: (input.metadata ?? {}) as Json,
   };
 
-  await prisma.aiUsageLog.create({ data: row });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await db.from("AiUsageLog").insert(row as any);
 
   if (process.env.AI_USAGE_FILE_LOG === "true") {
     const filePath = process.env.AI_USAGE_LOG_PATH ?? "logs/ai-usage.jsonl";
