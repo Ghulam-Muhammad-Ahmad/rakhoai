@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/db/prisma";
+import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
+import { db } from "@/lib/db/client";
+import type { Json } from "@/lib/db/database.types";
 import { runMapping, MappingResult } from "@/lib/matching";
 import { MappingReview } from "@/components/mapping/MappingReview";
 
@@ -11,13 +13,16 @@ export default async function MapPage({ params }: { params: Promise<{ id: string
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await prisma.user.findUnique({
-    where: { supabaseId: user.id },
-    include: { academy: true },
-  });
+  const dbUser = await getAuthUserWithAcademy(user.id);
   if (!dbUser?.academy) redirect("/onboarding");
 
-  const upload = await prisma.upload.findUnique({ where: { id } });
+  const { data: upload, error: uploadError } = await db
+    .from("Upload")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (uploadError) redirect("/dashboard");
   if (!upload || upload.academyId !== dbUser.academy.id) redirect("/dashboard");
 
   if (!upload.headers || !upload.sampleRows) redirect("/uploads/new");
@@ -29,33 +34,40 @@ export default async function MapPage({ params }: { params: Promise<{ id: string
 
   // Auto-run mapping if not done yet
   if (!mappings || mappings.length === 0) {
-    const defaultTemplate = await prisma.columnMapping.findFirst({
-      where: { academyId: dbUser.academy.id, isDefault: true },
-    });
+    const { data: defaultTemplate } = await db
+      .from("ColumnMapping")
+      .select("mappingJson")
+      .eq("academyId", dbUser.academy.id)
+      .eq("isDefault", true)
+      .order("createdAt", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const templateMap = defaultTemplate
       ? (defaultTemplate.mappingJson as Record<string, string | null>)
       : null;
 
     mappings = await runMapping(headers, sampleRows, upload.id, templateMap);
 
-    await prisma.upload.update({
-      where: { id: upload.id },
-      data: { mappingJson: mappings as object[] },
-    });
+    await db
+      .from("Upload")
+      .update({ mappingJson: mappings as unknown as Json })
+      .eq("id", upload.id);
   }
 
-  const templates = await prisma.columnMapping.findMany({
-    where: { academyId: dbUser.academy.id },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
-    select: { id: true, name: true, isDefault: true, mappingJson: true },
-  });
+  const { data: templates } = await db
+    .from("ColumnMapping")
+    .select("id, name, isDefault, mappingJson")
+    .eq("academyId", dbUser.academy.id)
+    .order("isDefault", { ascending: false })
+    .order("createdAt", { ascending: false });
 
   return (
     <div className="page-fade" style={{ padding: "32px 24px" }}>
       <MappingReview
         uploadId={upload.id}
         initialMappings={mappings}
-        templates={templates}
+        templates={templates ?? []}
       />
     </div>
   );

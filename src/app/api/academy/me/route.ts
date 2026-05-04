@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/lib/db/client";
+import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 
 export async function GET() {
   const supabase = await createClient();
@@ -10,15 +10,10 @@ export async function GET() {
     return NextResponse.json({ academy: null }, { status: 401 });
   }
 
-  const { data: dbUser, error: dbError } = await db
-    .from("User")
-    .select("id, academy:Academy(*)")
-    .eq("supabaseId", user.id)
-    .maybeSingle() as { data: { id: string; academy: Record<string, unknown> | null } | null; error: { message: string } | null };
-
-  if (dbError) {
+  try {
+    const dbUser = await getAuthUserWithAcademy(user.id);
+    return NextResponse.json({ academy: dbUser?.academy ?? null });
+  } catch {
     return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
-
-  return NextResponse.json({ academy: dbUser?.academy ?? null });
 }

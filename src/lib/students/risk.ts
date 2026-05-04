@@ -4,6 +4,7 @@ import {
   filterAndSortStudentRiskRows,
   getInitials,
   normalizeRiskLevel,
+  selectLatestActionStatus,
   selectLatestRisk,
   type DbRiskBand,
   type RiskLevel,
@@ -43,6 +44,7 @@ export type StudentRiskListItem = {
   recommendedAction: string | null;
   confidence: number | null;
   computedAt: string | null;
+  latestActionStatus: string | null;
 };
 
 export type StudentActionItem = {
@@ -113,6 +115,7 @@ function toListItem(row: StudentWithRelations, currencySymbol = "$"): StudentRis
     recommendedAction: latestRisk?.recommendedAction ?? null,
     confidence: latestRisk?.confidence ?? null,
     computedAt: latestRisk?.computedAt ?? null,
+    latestActionStatus: selectLatestActionStatus(row.actions),
   };
 }
 
@@ -138,7 +141,8 @@ export async function getStudentRiskList(
     .from("Student")
     .select(`
       *,
-      riskAssessments:RiskAssessment(*)
+      riskAssessments:RiskAssessment(*),
+      actions:Action(id, status, createdAt, updatedAt)
     `)
     .eq("academyId", academyId);
 

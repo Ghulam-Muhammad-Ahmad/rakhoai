@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
-import { getDashboardSummary } from "@/lib/dashboard/summary";
+import { getStudentDetail } from "@/lib/students/risk";
 
-export async function GET() {
+type Params = { params: Promise<{ id: string }> };
+
+export async function GET(_req: Request, { params }: Params) {
+  const { id } = await params;
   const supabase = await createClient();
   const {
     data: { user },
@@ -14,10 +17,14 @@ export async function GET() {
   }
 
   const dbUser = await getAuthUserWithAcademy(user.id);
-
-  if (!dbUser?.academy) {
+  if (!dbUser.academy) {
     return NextResponse.json({ error: "Academy not found" }, { status: 404 });
   }
 
-  return NextResponse.json(await getDashboardSummary(dbUser.academy.id));
+  const student = await getStudentDetail(dbUser.academy.id, id);
+  if (!student) {
+    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ student });
 }

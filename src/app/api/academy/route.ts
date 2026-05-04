@@ -27,33 +27,10 @@ export async function POST(req: NextRequest) {
 
   const { name, country, currency } = parsed.data;
 
-  // Find or create User record
-  const { data: existingUser } = await db
-    .from("User")
-    .select("id")
-    .eq("supabaseId", user.id)
-    .maybeSingle();
-
-  let userId: string;
-  if (existingUser) {
-    userId = existingUser.id;
-  } else {
-    const newId = crypto.randomUUID();
-    const { error } = await db.from("User").insert({
-      id: newId,
-      supabaseId: user.id,
-      email: user.email!,
-      name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? null,
-    });
-    if (error) return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
-    userId = newId;
-  }
-
-  // Find or upsert Academy
   const { data: existingAcademy } = await db
     .from("Academy")
     .select("id")
-    .eq("ownerId", userId)
+    .eq("ownerId", user.id)
     .maybeSingle();
 
   if (existingAcademy) {
@@ -69,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   const { data: academy, error } = await db.from("Academy").insert({
     id: crypto.randomUUID(),
-    ownerId: userId,
+    ownerId: user.id,
     name,
     country,
     currency,

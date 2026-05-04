@@ -1,14 +1,8 @@
-# RakhoAI — AI-Powered Student Retention Analytics
+# RakhoAI
 
-> Upload your messy spreadsheet data. Get AI-powered churn predictions 14–21 days early. Take action before students leave.
+AI-powered student retention analytics for tutoring businesses.
 
-Built for tutoring businesses running on Excel and WhatsApp — primarily in Pakistan, India, UAE, Nigeria, and the Philippines.
-
----
-
-## What It Does
-
-RakhoAI ingests any Excel or CSV file from a tutoring business, maps the messy columns to a standard schema using a 3-layer AI matching system, scores every student for churn risk, and surfaces a prioritised at-risk list with recommended actions.
+Upload messy spreadsheet data, map columns into a standard student schema, score churn risk, and prioritize interventions before students leave.
 
 ---
 
@@ -16,11 +10,16 @@ RakhoAI ingests any Excel or CSV file from a tutoring business, maps the messy c
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js 16 (App Router), TypeScript |
-| Styling | Tailwind CSS v4 |
-| Auth | Supabase Auth (email + Google OAuth) |
+| Framework | Next.js App Router, TypeScript |
+| Styling | Tailwind CSS |
+| Auth | Supabase Auth: email/password and Google OAuth |
 | Database | PostgreSQL via Supabase |
-| ORM | Prisma 7 with `@prisma/adapter-pg` |
+| DB client | Supabase JS client (`@supabase/supabase-js`) |
+| DB types | Supabase CLI generated TypeScript types |
+| Storage | Supabase Storage |
+| File parsing | SheetJS (`xlsx`), Papaparse |
+| Matching | Exact aliases, `fuse.js`, OpenAI semantic matching |
+| AI | OpenAI SDK |
 | Validation | Zod |
 | Icons | Lucide React |
 | Hosting | Vercel + Supabase |
@@ -31,84 +30,75 @@ RakhoAI ingests any Excel or CSV file from a tutoring business, maps the messy c
 
 ```
 src/
-├── app/
-│   ├── (auth)/          # Login, signup, server actions
-│   ├── (dashboard)/     # Protected dashboard routes
-│   ├── api/             # API route handlers
-│   │   └── academy/     # Academy creation & retrieval
-│   ├── auth/callback/   # Supabase OAuth callback
-│   └── onboarding/      # Academy profile setup
-├── components/
-│   ├── dashboard/       # Dashboard shell & layout
-│   └── ui/              # Shared UI primitives
-├── lib/
-│   ├── db/              # Prisma client singleton
-│   └── supabase/        # Supabase client (server + browser)
-├── generated/
-│   └── prisma/          # Generated Prisma client & types
-prisma/
-├── schema.prisma
-├── migrations/
-└── prisma.config.ts
+  app/
+    (auth)/          # Login, signup, server actions
+    (dashboard)/     # Protected dashboard routes
+    api/             # API route handlers
+    auth/callback/   # Supabase OAuth callback
+    onboarding/      # Academy setup
+  components/
+    dashboard/
+    mapping/
+    ui/
+  lib/
+    ai/              # OpenAI wrapper and usage logging
+    dashboard/       # Dashboard summary queries
+    db/              # Supabase service-role client, helpers, generated types
+    matching/        # Exact, fuzzy, and AI column mapping
+    parsers/         # CSV/Excel parsing
+    scoring/         # Rule and AI scoring pipeline
+    supabase/        # Supabase SSR/browser auth clients
+supabase/
+  migrations/        # SQL migrations and RLS policies
+tests/
 ```
 
 ---
 
-## Database Schema
+## Database
 
-```prisma
-model User {
-  id         String   @id @default(uuid())
-  supabaseId String   @unique
-  email      String   @unique
-  name       String?
-  createdAt  DateTime @default(now())
-  academy    Academy?
-}
+Core data flow:
 
-model Academy {
-  id        String   @id @default(uuid())
-  ownerId   String   @unique
-  owner     User     @relation(...)
-  name      String
-  country   String
-  currency  String   @default("USD")
-  createdAt DateTime @default(now())
-}
-```
+`auth.users` -> `Academy` -> `Upload` -> `Student` -> `RiskAssessment` + `Action`
 
-Row-level security (RLS) is enabled on both tables — each user can only access their own data.
+Reusable mapping templates live in `ColumnMapping`. AI usage metadata lives in `AiUsageLog`.
+
+RLS is enabled in Supabase SQL migrations. Policies scope tenant data through the authenticated Supabase user and the owning academy.
 
 ---
 
 ## Getting Started
 
-### 1. Clone & install
+### 1. Install
 
 ```bash
-git clone https://github.com/your-org/rakhoai.git
-cd rakhoai
 npm install
 ```
 
-### 2. Environment variables
+### 2. Environment Variables
 
 Create `.env.local` in the project root:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-DATABASE_URL=postgresql://postgres:password@db.xxxxx.supabase.co:5432/postgres
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+OPENAI_API_KEY=your-openai-api-key
 ```
 
-### 3. Run migrations
+### 3. Apply Migrations
 
 ```bash
-npx prisma migrate dev
-npx prisma generate
+npx supabase db push
 ```
 
-### 4. Start dev server
+After schema changes, regenerate DB types:
+
+```bash
+npx supabase gen types typescript --linked > src/lib/db/database.types.ts
+```
+
+### 4. Run Locally
 
 ```bash
 npm run dev
@@ -122,20 +112,22 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```
 Sign up / Google OAuth
-        ↓
+        |
   Auth callback
-  (User upserted in DB)
-        ↓
-  No academy? → /onboarding (create academy profile)
-  Has academy? → /dashboard
-        ↓
+  Supabase Auth session established
+        |
+  No academy? -> /onboarding
+  Has academy? -> /dashboard
+        |
   Upload CSV / Excel
-        ↓
-  AI column mapping (3-layer: exact → fuzzy → semantic)
-        ↓
-  AI risk scoring per student
-        ↓
-  Dashboard: at-risk list, recommended actions
+        |
+  Column mapping: exact -> fuzzy -> AI semantic
+        |
+  Confirm mapping / save template
+        |
+  Process upload and score student risk
+        |
+  Dashboard: at-risk list and recommended actions
 ```
 
 ---
@@ -146,11 +138,13 @@ Sign up / Google OAuth
 npm run dev           # Start local dev server
 npm run build         # Production build
 npm run lint          # ESLint
+npm run test:scoring  # Unit tests for scoring/dashboard helpers
 
-npx prisma migrate dev       # Run DB migrations
-npx prisma generate          # Regenerate Prisma client
-npx prisma studio            # Browse database
+npx supabase db push
+npx supabase gen types typescript --linked > src/lib/db/database.types.ts
 ```
+
+Prisma is not used in this project.
 
 ---
 
@@ -158,21 +152,21 @@ npx prisma studio            # Browse database
 
 | # | Feature | Status |
 |---|---|---|
-| F1 | Email / Google sign-up | ✅ Done |
-| F2 | Academy profile creation | ✅ Done |
-| F3 | CSV / Excel file upload | 🔄 In progress |
-| F4 | Auto column mapping (3-layer) | ⬜ Pending |
-| F5 | Manual column mapping override | ⬜ Pending |
-| F6 | Save mapping as reusable template | ⬜ Pending |
-| F7 | AI risk scoring per student | ⬜ Pending |
-| F8 | Risk reasoning | ⬜ Pending |
-| F9 | Suggested action per student | ⬜ Pending |
-| F10 | Retention dashboard | ⬜ Pending |
-| F11 | At-risk student list | ⬜ Pending |
-| F12 | Individual student detail page | ⬜ Pending |
-| F13 | Mark action taken | ⬜ Pending |
-| F14 | Email alerts | ⬜ Pending |
-| F23 | Stripe billing | ⬜ Pending |
+| F1 | Email / Google sign-up | Done |
+| F2 | Academy profile creation | Done |
+| F3 | CSV / Excel file upload | Done |
+| F4 | Auto column mapping (3-layer) | Done |
+| F5 | Manual column mapping override | Done |
+| F6 | Save mapping as reusable template | Done |
+| F7 | AI risk scoring per student | In progress |
+| F8 | Risk reasoning | In progress |
+| F9 | Suggested action per student | In progress |
+| F10 | Retention dashboard | In progress |
+| F11 | At-risk student list | Pending |
+| F12 | Individual student detail page | Pending |
+| F13 | Mark action taken | Pending |
+| F14 | Email alerts | Pending |
+| F23 | Stripe billing | Pending |
 
 ---
 
@@ -191,4 +185,4 @@ npx prisma studio            # Browse database
 
 ## License
 
-Private — all rights reserved.
+Private. All rights reserved.

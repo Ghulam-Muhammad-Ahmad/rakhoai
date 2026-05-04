@@ -1,5 +1,6 @@
 import { LogOut } from "lucide-react";
 import { redirect } from "next/navigation";
+import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { createClient } from "@/lib/supabase/server";
 
 function getInitials(name: string) {
@@ -23,6 +24,11 @@ export default async function OnboardingLayout({
 
   if (!user) {
     redirect("/login");
+  }
+
+  const dbUser = await getAuthUserWithAcademy(user.id);
+  if (dbUser.academy) {
+    redirect("/dashboard");
   }
 
   const fullName =

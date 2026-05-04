@@ -83,17 +83,18 @@ A tutoring business owner with 120 students currently:
 | F12 | Individual student detail page | Must | MVP |
 | F13 | Mark action as taken | Should | MVP |
 | F14 | Email alert when new high-risk student found | Should | MVP |
-| F15 | WhatsApp message templates | Should | Phase 2 |
-| F16 | Historical churn trends chart | Could | Phase 2 |
-| F17 | Multi-academy / multi-branch support | Could | Phase 2 |
-| F18 | Tutor-level performance scoring | Could | Phase 2 |
-| F19 | Direct LMS integrations (TutorBird etc.) | Could | Phase 3 |
-| F20 | Auto-send retention emails | Could | Phase 3 |
-| F21 | Mobile app | Could | Phase 3 |
-| F22 | Team/staff access roles | Could | Phase 2 |
-| F23 | Subscription billing (Stripe/Paddle) | Must | MVP |
-| F24 | PDF report export | Could | Phase 2 |
-| F25 | Onboarding tutorial / sample data | Should | MVP |
+| F15 | Teacher/tutor table with operational stats | Must | MVP |
+| F16 | WhatsApp message templates | Should | Phase 2 |
+| F17 | Historical churn trends chart | Could | Phase 2 |
+| F18 | Multi-academy / multi-branch support | Could | Phase 2 |
+| F19 | Tutor-level performance scoring | Could | Phase 2 |
+| F20 | Direct LMS integrations (TutorBird etc.) | Could | Phase 3 |
+| F21 | Auto-send retention emails | Could | Phase 3 |
+| F22 | Mobile app | Could | Phase 3 |
+| F23 | Team/staff access roles | Could | Phase 2 |
+| F24 | Subscription billing (Stripe/Paddle) | Must | MVP |
+| F25 | PDF report export | Could | Phase 2 |
+| F26 | Onboarding tutorial / sample data | Should | MVP |
 
 ---
 
@@ -215,6 +216,13 @@ For each student row, the system computes:
 - Risk trend over last 30 days (line)
 - Churn vs retention by tutor (bar) — Phase 2
 
+**Teacher/Tutor Table — MVP:**
+- Shows each teacher/tutor imported from the uploaded student data
+- Columns: Tutor Name | Assigned Students | High Risk | Medium Risk | Average Risk Score | Average Attendance | Revenue at Risk | Pending Actions | Students Saved
+- Sortable by high-risk count, average risk score, revenue at risk, and assigned students
+- Click row → filtered student list for that tutor or tutor detail page
+- MVP goal is operational visibility, not AI-based tutor performance scoring
+
 **Action Tracking:**
 - Mark action as: Pending / In Progress / Done / Student Saved / Student Lost
 - Notes field per action
@@ -289,8 +297,11 @@ uploads
 column_mappings
   id, academy_id, name (template name), mapping_json, is_default
 
+tutors
+  id, academy_id, name, email, phone, raw_name, created_at, updated_at
+
 students
-  id, academy_id, external_id, name, contact, join_date,
+  id, academy_id, tutor_id, external_id, name, contact, join_date,
   last_session_date, attendance_rate, payment_status,
   fees_amount, tutor, subject, raw_data_json, created_at, updated_at
 
@@ -326,6 +337,9 @@ GET    /api/students                → list + filter + sort
 GET    /api/students/:id            → detail
 GET    /api/students/:id/risk       → latest risk assessment
 
+GET    /api/tutors                  → tutor table + stats
+GET    /api/tutors/:id              → tutor detail + assigned students
+
 POST   /api/actions                 → log new action
 PATCH  /api/actions/:id             → update status
 
@@ -349,6 +363,8 @@ POST   /api/billing/webhook         → Stripe webhook handler
     /dashboard
     /students
       /[id]
+    /tutors
+      /[id]
     /uploads
       /[id]/map
     /settings
@@ -356,6 +372,7 @@ POST   /api/billing/webhook         → Stripe webhook handler
     /auth
     /uploads
     /students
+    /tutors
     /actions
     /dashboard
     /billing
@@ -419,12 +436,13 @@ POST   /api/billing/webhook         → Stripe webhook handler
 7. Student detail page
 8. Mark action taken
 9. Email alerts (basic)
-10. Stripe billing (one plan: $49/month)
+10. Teacher/tutor table with basic stats
+11. Stripe billing (one plan: $49/month)
 
 **Explicitly NOT in MVP:**
 - WhatsApp integration
 - Multi-academy
-- Tutor scoring
+- Advanced tutor scoring (basic tutor table + stats are MVP)
 - LMS integrations
 - Mobile app
 - PDF exports

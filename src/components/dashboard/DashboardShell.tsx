@@ -4,49 +4,24 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  LayoutDashboard, Users, MessageCircleHeart, Layers, FileText,
-  Building2, UserCog, Settings, Search, LifeBuoy, Bell, LogOut, Upload,
+  LayoutDashboard, Users, MessageCircleHeart,
+  UserCog, Settings, Search, LogOut, Upload, GraduationCap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/dashboard",     icon: LayoutDashboard,    label: "Risk overview" },
   { href: "/students",      icon: Users,              label: "Students" },
+  { href: "/tutors",        icon: GraduationCap,      label: "Tutors" },
   { href: "/uploads/new",   icon: Upload,             label: "Upload data" },
   { href: "/interventions", icon: MessageCircleHeart, label: "Interventions" },
-  { href: "/cohorts",       icon: Layers,             label: "Cohorts" },
-  { href: "/reports",       icon: FileText,           label: "Reports" },
 ];
 
 const manageItems = [
-  { href: "/centers",  icon: Building2, label: "Centers" },
   { href: "/team",     icon: UserCog,   label: "Team" },
   { href: "/settings", icon: Settings,  label: "Settings" },
 ];
 
-function UpsellCard() {
-  return (
-    <div className="relative overflow-hidden rounded-[var(--radius-lg)] p-[22px] text-white"
-      style={{ background: "linear-gradient(155deg, var(--primary-500), var(--primary-700))" }}>
-      <svg className="absolute -right-10 -top-10 w-[180px] h-[180px] opacity-[0.18] pointer-events-none" viewBox="0 0 240 200" fill="none">
-        <g stroke="#FFFFFF" strokeWidth="1.4" fill="none">
-          <path d="M120 30 C 70 50 50 100 70 150 C 90 185 150 180 170 145 C 190 110 180 60 130 32"/>
-          <path d="M120 55 C 90 70 80 105 95 135 C 110 160 145 158 158 132 C 170 105 160 70 128 56"/>
-          <path d="M120 80 C 105 90 100 110 110 130 C 122 148 140 142 145 122 C 150 100 138 82 122 80"/>
-        </g>
-      </svg>
-      <h4 className="mb-1.5 text-[18px] font-medium leading-tight" style={{ fontFamily: "var(--font-display)" }}>
-        Open all 6 branches
-      </h4>
-      <p className="mb-3.5 text-[13px] leading-relaxed text-white/85">
-        Multi-center analytics, role-based access, and exec-ready monthly PDFs.
-      </p>
-      <button className="rounded-[var(--radius-md)] border-none bg-[var(--accent-500)] px-3 py-1.5 text-[13px] font-medium text-white cursor-pointer">
-        See Pro
-      </button>
-    </div>
-  );
-}
 
 function NavLink({ href, icon: Icon, label, exact = false }: { href: string; icon: React.ElementType; label: string; exact?: boolean }) {
   const pathname = usePathname();
@@ -91,9 +66,6 @@ function Sidebar() {
         ))}
       </div>
 
-      <div className="mt-auto">
-        <UpsellCard />
-      </div>
     </aside>
   );
 }
@@ -138,12 +110,6 @@ function Topbar() {
       </div>
 
       <div className="flex-1" />
-
-      {[LifeBuoy, Bell].map((Icon, i) => (
-        <button key={i} className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--neutral-200)] bg-white text-[var(--neutral-500)] hover:bg-[var(--neutral-50)]">
-          <Icon size={16} />
-        </button>
-      ))}
 
       <button
         onClick={async () => {

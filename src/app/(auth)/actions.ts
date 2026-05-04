@@ -2,16 +2,11 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/db/prisma'
+import { getAuthUserWithAcademy } from '@/lib/db/auth-user'
 import { headers } from 'next/headers'
 
-async function upsertUserAndGetRedirect(supabaseId: string, email: string, name: string) {
-  const dbUser = await prisma.user.upsert({
-    where: { supabaseId },
-    create: { supabaseId, email, name },
-    update: { name },
-    include: { academy: true },
-  })
+async function getRedirectForUser(authUserId: string) {
+  const dbUser = await getAuthUserWithAcademy(authUserId)
   return dbUser.academy ? '/dashboard' : '/onboarding'
 }
 
@@ -36,13 +31,13 @@ export async function signUp(formData: FormData) {
     redirect(`/signup?error=${encodeURIComponent(error.message)}`)
   }
 
-  // Email confirmation disabled — session returned immediately
+  // Email confirmation disabled: session returned immediately.
   if (data.session && data.user) {
-    const dest = await upsertUserAndGetRedirect(data.user.id, email, name)
+    const dest = await getRedirectForUser(data.user.id)
     redirect(dest)
   }
 
-  // Email confirmation enabled — ask user to check email
+  // Email confirmation enabled: ask user to check email.
   redirect('/signup?message=Check+your+email+to+confirm+your+account')
 }
 
@@ -58,14 +53,7 @@ export async function signIn(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  const user = data.user
-  const name =
-    user.user_metadata?.full_name ||
-    user.user_metadata?.name ||
-    user.email?.split('@')[0] ||
-    'User'
-
-  const dest = await upsertUserAndGetRedirect(user.id, user.email!, name)
+  const dest = await getRedirectForUser(data.user.id)
   redirect(dest)
 }
 

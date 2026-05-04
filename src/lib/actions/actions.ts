@@ -1,0 +1,85 @@
+import crypto from "node:crypto";
+import { db } from "@/lib/db/client";
+import type { Database } from "@/lib/db/database.types";
+import { buildActionStatusUpdate, isActionStatus, type ActionStatus } from "./action-core";
+
+type ActionRow = Database["public"]["Tables"]["Action"]["Row"];
+
+export async function assertStudentBelongsToAcademy(studentId: string, academyId: string) {
+  const { data, error } = await db
+    .from("Student")
+    .select("id")
+    .eq("id", studentId)
+    .eq("academyId", academyId)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to verify student ownership: ${error.message}`);
+  if (!data) throw new Error("Student not found");
+}
+
+export async function createAction(args: {
+  academyId: string;
+  studentId: string;
+  takenBy: string;
+  type: string;
+  content?: string | null;
+  status?: ActionStatus;
+  notes?: string | null;
+}): Promise<ActionRow> {
+  if (args.status && !isActionStatus(args.status)) throw new Error("Invalid action status");
+  await assertStudentBelongsToAcademy(args.studentId, args.academyId);
+
+  const now = new Date().toISOString();
+  const status = args.status ?? "PENDING";
+  const { data, error } = await db
+    .from("Action")
+    .insert({
+      id: crypto.randomUUID(),
+      academyId: args.academyId,
+      studentId: args.studentId,
+      takenBy: args.takenBy,
+      type: args.type,
+      content: args.content ?? null,
+      status,
+      notes: args.notes ?? null,
+      takenAt: status === "DONE" || status === "STUDENT_SAVED" || status === "STUDENT_LOST" ? now : null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw new Error(`Failed to create action: ${error.message}`);
+  return data;
+}
+
+export async function updateActionStatus(args: {
+  academyId: string;
+  actionId: string;
+  status: ActionStatus;
+  notes?: string | null;
+}): Promise<ActionRow> {
+  if (!isActionStatus(args.status)) throw new Error("Invalid action status");
+
+  const { data: existing, error: fetchError } = await db
+    .from("Action")
+    .select("id, academyId")
+    .eq("id", args.actionId)
+    .eq("academyId", args.academyId)
+    .maybeSingle();
+
+  if (fetchError) throw new Error(`Failed to fetch action: ${fetchError.message}`);
+  if (!existing) throw new Error("Action not found");
+
+  const update = buildActionStatusUpdate({ status: args.status, notes: args.notes });
+  const { data, error } = await db
+    .from("Action")
+    .update(update)
+    .eq("id", args.actionId)
+    .eq("academyId", args.academyId)
+    .select("*")
+    .single();
+
+  if (error) throw new Error(`Failed to update action: ${error.message}`);
+  return data;
+}

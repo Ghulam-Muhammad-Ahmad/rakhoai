@@ -2,6 +2,8 @@ import { db } from "@/lib/db/client";
 import type { Json, Database } from "@/lib/db/database.types";
 import { CanonicalStudentInput, AiRiskResult } from "./types";
 import { computeRuleScore } from "./rules";
+import { queueHighRiskAlert } from "@/lib/alerts/high-risk";
+import { getOrCreateTutor } from "@/lib/tutors/tutors";
 import crypto from "node:crypto";
 
 type StudentRow = Database["public"]["Tables"]["Student"]["Row"];
@@ -51,7 +53,8 @@ export async function persistRiskResults(args: {
     }
 
     const now = new Date().toISOString();
-    const studentData: StudentUpdate = {
+    const tutor = await getOrCreateTutor(args.academyId, student.tutor);
+    const studentData: StudentUpdate & { tutorId?: string | null } = {
       academyId: args.academyId,
       uploadId: args.uploadId,
       externalId: student.externalId ?? null,
@@ -63,9 +66,10 @@ export async function persistRiskResults(args: {
       paymentStatus: student.paymentStatus ?? null,
       lastPaymentDate: student.lastPaymentDate?.toISOString() ?? null,
       totalSessions: student.totalSessions ?? null,
-      feesAmount: student.feesAmount != null ? String(student.feesAmount) : null,
+      feesAmount: student.feesAmount ?? null,
       subject: student.subject ?? null,
       tutor: student.tutor ?? null,
+      tutorId: tutor?.id ?? null,
       rawDataJson: student.rawData as Json,
       updatedAt: now,
     };
@@ -115,9 +119,26 @@ export async function persistRiskResults(args: {
       aiModel: args.model,
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: raError } = await (db as any)
+    const { data: riskAssessment, error: raError } = await (db as any)
       .from("RiskAssessment")
-      .insert(raInsert) as { error: { message: string } | null };
+      .insert(raInsert)
+      .select("*")
+      .single() as { data: Database["public"]["Tables"]["RiskAssessment"]["Row"] | null; error: { message: string } | null };
     if (raError) throw new Error(`Failed to insert risk assessment: ${raError.message}`);
+    if (riskAssessment) {
+      try {
+        await queueHighRiskAlert({
+          academyId: args.academyId,
+          student: { id: studentId, name: student.name },
+          riskAssessment,
+        });
+      } catch (alertError) {
+        console.warn(
+          `[persistRiskResults] Failed to queue high-risk alert for student "${student.name}": ${
+            alertError instanceof Error ? alertError.message : "unknown error"
+          }`
+        );
+      }
+    }
   }
 }

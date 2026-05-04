@@ -1,116 +1,146 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file provides guidance to Codex and other coding agents when working in this repository.
 
 ---
 
 ## Project
 
-**RakhoAI (RetainIQ)** — B2B SaaS for AI-powered student retention analytics. Tutoring businesses upload messy spreadsheet data; the system predicts which students will churn 14–21 days early.
+**RakhoAI (RetainIQ)** is a B2B SaaS for AI-powered student retention analytics. Tutoring businesses upload messy spreadsheet data; the system predicts which students are likely to churn 14-21 days early.
 
-No code exists yet. This repo contains specs only: `PRD.md` (full product requirements) and `Colorscheme.md` (brand palette).
+The repository now contains an initialized Next.js app with Supabase Auth/DB, upload parsing, auto column mapping, reusable mapping templates, risk scoring foundations, and dashboard routes.
 
 ---
 
-## Tech Stack (Planned)
+## Tech Stack
 
 | Layer | Choice |
 |---|---|
-| Frontend | Next.js 15 (App Router), TypeScript, Tailwind CSS, shadcn/ui, Recharts, TanStack Table, React Dropzone |
-| Backend | Next.js API Route Handlers, Node.js |
+| Frontend | Next.js App Router, TypeScript, Tailwind CSS |
+| Backend | Next.js API Route Handlers, server components, Node.js |
 | File parsing | SheetJS (`xlsx`) for Excel, Papaparse for CSV |
-| Fuzzy matching | `string-similarity` or `fuse.js` |
-| AI | OpenAI SDK (column mapping + risk scoring) |
-| ORM | Prisma |
-| DB | PostgreSQL via Supabase or Neon |
-| Cache | Redis via Upstash (AI result cache, 24h TTL) |
-| Auth | Auth.js v5 (NextAuth) — email + Google OAuth |
-| Storage | Supabase Storage or S3 (uploaded files, 90-day retention) |
-| Payments | Stripe |
+| Fuzzy matching | `fuse.js` |
+| AI | OpenAI SDK for column mapping and risk scoring |
+| DB client | Supabase JS client (`@supabase/supabase-js`) |
+| DB | PostgreSQL via Supabase |
+| DB types | Supabase CLI generated TypeScript types |
+| Auth | Supabase Auth: email/password and Google OAuth |
+| Storage | Supabase Storage |
 | Hosting | Vercel + Supabase |
-| Monitoring | Sentry, PostHog, Vercel Analytics |
 
 ---
 
-## Commands (once initialized)
+## Commands
 
 ```bash
 npm run dev        # local dev server
 npm run build      # production build
 npm run lint       # ESLint
-npx prisma migrate dev    # run DB migrations
-npx prisma studio         # browse DB
+npm run test:scoring
+
+npx supabase db push
+npx supabase gen types typescript --linked > src/lib/db/database.types.ts
+```
+
+Do not run Prisma commands. Prisma is no longer part of this codebase.
+
+---
+
+## Folder Structure
+
+```
+src/
+  app/
+    (auth)/login, (auth)/signup
+    (dashboard)/dashboard, (dashboard)/students/[id], (dashboard)/uploads/[id]/map
+    api/academy, api/uploads, api/dashboard
+    auth/callback
+    onboarding
+  components/
+    ui
+    mapping
+    dashboard
+  lib/
+    db          # Supabase service-role client, auth DB helpers, generated DB types
+    ai          # OpenAI SDK wrapper and usage logging
+    parsers     # Excel/CSV parsing
+    matching    # 3-layer column mapping logic
+    scoring     # rule-based and AI scoring pipeline
+    supabase    # Supabase SSR/browser auth clients
+supabase/
+  migrations    # SQL migrations with RLS policies
+tests/
 ```
 
 ---
 
-## Planned Folder Structure
+## Core Architecture
 
-```
-/app
-  /(auth)/login, /signup
-  /(dashboard)/dashboard, /students/[id], /uploads/[id]/map, /settings
-  /api/auth, /uploads, /students, /actions, /dashboard, /billing
-/components
-  /ui          ← shadcn primitives
-  /upload
-  /mapping
-  /dashboard
-  /charts
-/lib
-  /db          ← Prisma client singleton
-  /ai          ← OpenAI SDK wrapper
-  /parsers     ← Excel/CSV parsing
-  /matching    ← 3-layer column mapping logic
-  /scoring     ← rule-based pre-score
-  /auth
-/prisma
-  schema.prisma
+### Stage 1 - Upload
+- Accept `.csv`, `.xlsx`, `.xls`.
+- Parse with SheetJS/Papaparse.
+- Store upload metadata, headers, sample rows, raw rows, and storage path in Supabase.
+
+### Stage 2 - Column Mapping
+Internal schema fields: `student_name`, `contact_info`, `join_date`, `last_session_date`, `attendance_rate`, `last_payment_date`, `payment_status`, `total_sessions`, `fees_amount`, `subject`, `tutor_assigned`, `notes`.
+
+Mapping runs through:
+1. Exact match with aliases and normalization.
+2. Fuzzy match with `fuse.js`.
+3. AI semantic match with OpenAI for unmatched columns.
+
+Users can override mappings and save reusable templates in `ColumnMapping`.
+
+### Stage 3 - Risk Scoring
+- Rule-based pre-score uses session recency, attendance, payment status, and tutor assignment.
+- AI layer batches students and returns risk score, reasons, recommended action, and confidence.
+- Usage is logged through `AiUsageLog`.
+
+### Stage 4 - Dashboard
+- Summary cards: total students, high/medium-risk counts, revenue at risk, students saved.
+- At-risk list and intervention workflows build on `Student`, `RiskAssessment`, and `Action`.
+
+---
+
+## Database
+
+Key tables:
+
+`auth.users` -> `Academy` -> `Upload` -> `Student` -> `RiskAssessment` + `Action`
+
+`ColumnMapping` stores reusable mapping templates as JSON per academy. `AiUsageLog` stores privacy-safe AI usage metadata.
+
+Multi-tenant scoping is academy-based. `Academy.ownerId` stores the Supabase Auth user id from `auth.users.id`; there is no public application `User` table.
+
+### Migration Security Requirements
+
+- Migrations live in `supabase/migrations/` as plain SQL files.
+- Include RLS policies in the same migration as table creation.
+- Enable RLS with `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`.
+- Add owner-scoped policies for `SELECT`, `INSERT`, and `UPDATE` at minimum.
+- Policies must scope access through the academy/user ownership chain and Supabase `auth.uid()`.
+- Apply migrations with `npx supabase db push`.
+- Regenerate DB types after schema changes with:
+
+```bash
+npx supabase gen types typescript --linked > src/lib/db/database.types.ts
 ```
 
 ---
 
-## Core Architecture: The 4-Stage Pipeline
+## Constraints
 
-### Stage 1 — Upload
-- Accept `.csv`, `.xlsx`, `.xls` (max 10 MB)
-- Parse with SheetJS/Papaparse; extract headers + first 5 rows for preview
-- Handle: multi-sheet Excel (user picks), merged cells (flatten + warn), encoding issues, headerless files
-
-### Stage 2 — Column Mapping (3 layers)
-Internal schema fields: `student_name`, `contact_info`, `join_date`, `last_session_date`, `attendance_rate`, `last_payment_date`, `payment_status`, `total_sessions`, `fees_amount`, `subject`, `tutor_assigned`, `notes`
-
-1. **Exact match** (confidence 1.0) — lowercase + strip spaces
-2. **Fuzzy match** (confidence 0.6–0.95) — auto-accept if score > 0.75
-3. **AI semantic match** (confidence 0.5–0.9) — send column name + 3 sample values to OpenAI; only for columns layers 1 & 2 miss
-
-User can override any mapping via dropdown; save as reusable template.
-
-### Stage 3 — Risk Scoring
-- **Rule-based pre-score** (fast/cheap): days-since-last-session, attendance drop, payment overdue, no tutor
-- **AI layer**: batch 10–20 students per OpenAI call → `risk_score` (0–100), `reasons[]`, `recommended_action`, `confidence`
-- Cache results 24h in Redis; re-run only on new upload
-
-### Stage 4 — Dashboard
-- Summary cards: total students, high/medium-risk counts, revenue at risk, students saved
-- At-risk table: sortable by score, filterable by band/tutor/subject
-- Action statuses: Pending / In Progress / Done / Student Saved / Student Lost
-
----
-
-## Database Schema (Key Tables)
-
-`users` → `academies` (one per user in MVP) → `uploads` → `students` → `risk_assessments` + `actions`
-
-`column_mappings` stores reusable mapping templates as JSON per academy.
-
-Multi-tenant: every table has `academy_id` FK. No single-tenant isolation.
+- Do not reintroduce Prisma.
+- Do not import `@prisma/*` packages or `src/generated/prisma`.
+- Server-side DB access should use `src/lib/db/client.ts` and helpers in `src/lib/db/`.
+- Client components may use Supabase only for auth/session behavior, not direct application-table reads or writes.
+- Keep F3/F4/F5/F6 API contracts stable.
 
 ---
 
 ## MVP Scope
 
-Build only: auth, single academy, CSV upload, 3-layer mapping, AI scoring, dashboard + at-risk list, student detail, mark action taken, email alerts, Stripe billing ($49/month plan).
+Build only: auth, single academy, CSV upload, 3-layer mapping, AI scoring, dashboard + at-risk list, student detail, mark action taken, email alerts, Stripe billing.
 
 Not in MVP: WhatsApp, multi-academy, tutor scoring, LMS integrations, mobile, PDF export, team roles.
 
@@ -126,13 +156,3 @@ Not in MVP: WhatsApp, multi-academy, tutor scoring, LMS integrations, mobile, PD
 | Success / Saved (Emerald) | `#10B981` |
 | Text (Charcoal) | `#1F2937` |
 | Background light | `#FAFAF7` |
-
----
-
-## Key Design Decisions (from PRD)
-
-- **Student deduplication**: match on `contact_info` first, then fuzzy name match; let user merge manually
-- **Raw files**: store 90 days then auto-delete
-- **AI cost control**: cache aggressively, use cheaper models for low-risk students
-- **No real-time**: batch processing on upload is sufficient for MVP
-- **Free trial**: no credit card required, 14-day limit, 50 students max
