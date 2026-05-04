@@ -1,15 +1,32 @@
 import { Download, Plus } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import StatCard from "@/components/ui/StatCard";
 import Avatar from "@/components/ui/Avatar";
 import RiskBadge from "@/components/ui/RiskBadge";
 import { AreaChart, BarChart, Donut } from "@/components/ui/Charts";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/db/prisma";
+import { getDashboardSummary } from "@/lib/dashboard/summary";
 import {
   STUDENTS, RISK_BREAKDOWN, RETENTION_TREND,
   ATTENDANCE_BARS, ATTENDANCE_LABELS, INTERVENTIONS,
 } from "@/lib/data";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const dbUser = await prisma.user.findUnique({
+    where: { supabaseId: user.id },
+    include: { academy: true },
+  });
+  if (!dbUser?.academy) redirect("/onboarding");
+
+  const summary = await getDashboardSummary(dbUser.academy.id);
   const atRisk = STUDENTS.filter(s => s.risk !== "safe");
 
   return (
@@ -34,10 +51,10 @@ export default function DashboardPage() {
 
       {/* KPI row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-        <StatCard tinted eyebrow="Total students" value="1,248" sub="across 6 centers" delta="+4.2%" />
-        <StatCard eyebrow="At risk this week" value="24" sub="6 critical · 18 high" delta="+3" deltaTone="down" />
-        <StatCard eyebrow="Retention · 30d" value="93%" sub="vs 91% last month" delta="+2.0%" />
-        <StatCard eyebrow="Recovered" value="11" sub="after intervention" delta="+5" />
+        <StatCard tinted eyebrow="Total students" value={summary.totalStudents.toLocaleString()} sub={dbUser.academy.name} />
+        <StatCard eyebrow="High risk" value={summary.highRiskCount.toLocaleString()} sub={`${summary.mediumRiskCount} medium risk`} deltaTone="down" />
+        <StatCard eyebrow="Revenue at risk" value={`$${summary.estimatedRevenueAtRisk.toLocaleString()}`} sub="high-risk active fees" />
+        <StatCard eyebrow="Students saved" value={summary.studentsSavedThisMonth.toLocaleString()} sub="this month" />
       </div>
 
       {/* Charts row */}

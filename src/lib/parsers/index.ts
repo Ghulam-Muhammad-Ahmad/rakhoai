@@ -4,6 +4,7 @@ import Papa from "papaparse";
 export interface ParseResult {
   headers: string[];
   sampleRows: Record<string, string>[];
+  rows: Record<string, string>[];
   totalRows: number;
   warnings: string[];
 }
@@ -42,6 +43,7 @@ function parseCSV(buffer: Buffer): ParseResult {
   return {
     headers,
     sampleRows: rows.slice(0, 5),
+    rows,
     totalRows: rows.length,
     warnings,
   };
@@ -79,6 +81,7 @@ function parseExcel(buffer: Buffer): ParseResult {
   return {
     headers,
     sampleRows: nonEmpty.slice(0, 5),
+    rows: nonEmpty,
     totalRows: nonEmpty.length,
     warnings,
   };

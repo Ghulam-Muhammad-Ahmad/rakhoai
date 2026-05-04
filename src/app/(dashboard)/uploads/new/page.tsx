@@ -357,7 +357,7 @@ export default function UploadNewPage() {
               Upload different file
             </button>
             <button
-              onClick={() => router.push("/students")}
+              onClick={() => router.push(`/uploads/${preview.uploadId}/map`)}
               style={{
                 fontSize: 14,
                 fontWeight: 500,
@@ -373,7 +373,7 @@ export default function UploadNewPage() {
               }}
             >
               <CheckCircle size={14} />
-              Done
+              Map columns →
             </button>
           </div>
         </div>

@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
       rowCount: parsed.totalRows,
       headers: parsed.headers,
       sampleRows: parsed.sampleRows,
+      rawRowsJson: parsed.rows,
     },
   });
 
