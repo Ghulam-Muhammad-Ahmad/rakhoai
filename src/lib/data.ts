@@ -1,4 +1,4 @@
-export type RiskLevel = "critical" | "high" | "medium" | "low" | "safe";
+export type RiskLevel = "critical" | "high" | "medium" | "low" | "safe" | "unscored" | "needs_data";
 export type AvatarTone = "primary" | "accent" | "blue" | "rose" | "slate";
 
 export interface Student {

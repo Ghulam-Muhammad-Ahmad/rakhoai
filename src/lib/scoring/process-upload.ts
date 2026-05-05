@@ -7,7 +7,12 @@ import { persistRiskResults } from "./persist";
 
 type UploadRow = Database["public"]["Tables"]["Upload"]["Row"];
 
-export async function processMappedUpload(uploadId: string, academyId: string) {
+export async function processMappedUpload(
+  uploadId: string,
+  academyId: string,
+  mode: "update" | "replace" = "update",
+  opts: { skipStatusCheck?: boolean } = {}
+) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: upload, error } = await (db as any)
     .from("Upload")
@@ -16,25 +21,33 @@ export async function processMappedUpload(uploadId: string, academyId: string) {
     .single() as { data: UploadRow | null; error: { message: string } | null };
 
   if (error || !upload || upload.academyId !== academyId) throw new Error("Upload not found");
-  if (upload.status === "PROCESSED") {
-    return { processed: upload.rowCount ?? 0, scored: upload.rowCount ?? 0, skipped: true };
-  }
-  if (upload.status !== "MAPPED") throw new Error("Upload must be mapped before processing");
+  if (!opts.skipStatusCheck) {
+    if (upload.status === "PROCESSED") {
+      return { processed: upload.rowCount ?? 0, scored: upload.rowCount ?? 0, skipped: true };
+    }
+    if (upload.status !== "MAPPED") throw new Error("Upload must be mapped before processing");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: processingError } = await (db as any)
-    .from("Upload")
-    .update({ status: "PROCESSING" })
-    .eq("id", uploadId) as { error: { message: string } | null };
-  if (processingError) throw new Error(`Failed to set upload to PROCESSING: ${processingError.message}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: processingError } = await (db as any)
+      .from("Upload")
+      .update({ status: "PROCESSING" })
+      .eq("id", uploadId) as { error: { message: string } | null };
+    if (processingError) throw new Error(`Failed to set upload to PROCESSING: ${processingError.message}`);
+  }
 
   try {
+    if (mode === "replace") {
+      // Delete all existing students for this academy (cascades to RiskAssessment via FK)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (db as any).from("Student").delete().eq("academyId", academyId);
+    }
+
     const rows =
       (upload.rawRowsJson as Record<string, unknown>[] | null) ??
       (upload.sampleRows as Record<string, unknown>[] | null) ??
       [];
     const mappings = (upload.mappingJson as MappingResult[] | null) ?? [];
-    const students = normalizeRows(rows, mappings);
+    const { students } = await normalizeRows(rows, mappings, { academyId, uploadId });
     const model = process.env.OPENAI_RISK_MODEL ?? "gpt-4o-mini";
     const results = await scoreStudentsWithAi({ academyId, uploadId, students });
 

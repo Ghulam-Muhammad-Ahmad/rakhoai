@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RefreshCw } from "lucide-react";
 import { redirect } from "next/navigation";
 import StatCard from "@/components/ui/StatCard";
 import Avatar from "@/components/ui/Avatar";
@@ -10,6 +11,7 @@ import { getDashboardSummary } from "@/lib/dashboard/summary";
 import { getDashboardCharts } from "@/lib/dashboard/charts";
 import { getStudentRiskList } from "@/lib/students/risk";
 import { getCurrencySymbol } from "@/lib/currency";
+import { RiskScoringButton } from "@/components/dashboard/RiskScoringButton";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -22,6 +24,23 @@ export default async function DashboardPage() {
   if (!dbUser?.academy) redirect("/onboarding");
 
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
+  const { db } = await import("@/lib/db/client");
+  const { data: lastUpload } = await db
+    .from("Upload")
+    .select("processedAt, fileName, rowCount")
+    .eq("academyId", dbUser.academy.id)
+    .eq("status", "PROCESSED")
+    .order("processedAt", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: entityUploads } = await (db as any)
+    .from("Upload")
+    .select("entityType, processedAt, uploadedAt")
+    .eq("academyId", dbUser.academy.id)
+    .eq("status", "PROCESSED")
+    .order("processedAt", { ascending: false });
+
   const summary = await getDashboardSummary(dbUser.academy.id);
   const charts = await getDashboardCharts(dbUser.academy.id);
   const atRisk = await getStudentRiskList(dbUser.academy.id, {
@@ -33,6 +52,27 @@ export default async function DashboardPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
+  const headlines = [
+    "Let’s see who needs you today",
+    "A few students could use your attention",
+    "Here’s what’s changed since you were last here",
+    "Some students are slipping — let’s catch them early",
+    "Your retention picture, right now",
+    "Who’s at risk today?",
+    "Time to check in on your students",
+  ];
+  const headline = headlines[new Date().getDate() % headlines.length];
+  const lastByEntity = new Map<string, string>();
+  for (const upload of entityUploads ?? []) {
+    const entityType = upload.entityType ?? "students";
+    if (!lastByEntity.has(entityType)) {
+      lastByEntity.set(entityType, upload.processedAt ?? upload.uploadedAt);
+    }
+  }
+  const hasSessions = lastByEntity.has("sessions");
+  const hasPayments = lastByEntity.has("payments");
+  const hasStructuredRisk = hasSessions && hasPayments;
+
   return (
     <div className="page-fade">
       {/* Page header */}
@@ -40,12 +80,22 @@ export default async function DashboardPage() {
         <div>
           <div style={{ fontSize: 14, color: "var(--neutral-500)" }}>{greeting}, {dbUser.academy.name}</div>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.02em", margin: "4px 0 0" }}>
-            Let&apos;s see who needs you today
+            {headline}
           </h1>
         </div>
-        <Link href="/uploads/new" style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: "none", background: "var(--primary-500)", color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          Upload data
-        </Link>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          <RiskScoringButton disabled={!hasStructuredRisk || summary.totalStudents === 0} />
+          <Link href="/uploads/new" style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: lastUpload ? "1px solid var(--neutral-200)" : "none", background: lastUpload ? "#fff" : "var(--primary-500)", color: lastUpload ? "var(--neutral-700)" : "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+            {lastUpload ? <><RefreshCw size={14} /> Update data</> : "Upload data"}
+          </Link>
+          {lastUpload?.processedAt && (
+            <div style={{ fontSize: 12, color: "var(--neutral-400)", textAlign: "right" }}>
+              Last updated {new Date(lastUpload.processedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+              {lastUpload.rowCount ? ` · ${lastUpload.rowCount.toLocaleString()} students` : ""}
+              {lastUpload.fileName ? ` · ${lastUpload.fileName}` : ""}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* KPI row */}
@@ -55,6 +105,14 @@ export default async function DashboardPage() {
         <StatCard eyebrow="Revenue at risk" value={`${currencySymbol}${summary.estimatedRevenueAtRisk.toLocaleString()}`} sub="high-risk active fees" />
         <StatCard eyebrow="Students saved" value={summary.studentsSavedThisMonth.toLocaleString()} sub="this month" />
       </div>
+
+      {!hasStructuredRisk && summary.totalStudents > 0 && (
+        <div style={{ marginTop: 16, padding: "14px 16px", borderRadius: 8, border: "1px solid #FDE68A", background: "#FFFBEB", color: "#78350F", fontSize: 13, lineHeight: 1.55 }}>
+          <strong>No churn prediction yet.</strong> Students are imported, but Rakho AI needs session history and payment data before showing full risk scores.
+          {!hasSessions ? " Upload sessions to unlock attendance and recency risk." : ""}
+          {!hasPayments ? " Upload payments to improve fee-risk accuracy." : ""}
+        </div>
+      )}
 
       {/* Charts row */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 16, marginTop: 16 }}>

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:scoring": "node tests/ai-usage-log.test.mjs && node tests/scoring-normalize.test.mjs && node tests/scoring-rules.test.mjs && node tests/dashboard-summary.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/retention-workflow.test.mjs"
+    "test:scoring": "node tests/ai-usage-log.test.mjs && node tests/scoring-normalize.test.mjs && node tests/scoring-rules.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/structured-import.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/entity-table-format.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/structured-risk.test.mjs && node tests/dashboard-summary.test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/retention-workflow.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",

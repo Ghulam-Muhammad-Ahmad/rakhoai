@@ -1,24 +1,112 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, AlertCircle, ChevronDown } from "lucide-react";
+import { CheckCircle, AlertCircle, ChevronDown, Ban } from "lucide-react";
 import type { MappingResult, MappingLayer } from "@/lib/matching";
+import type { EntityType } from "@/lib/imports/types";
+import type { ImportField } from "@/lib/imports/schema";
 
 const SCHEMA_FIELDS = [
-  { value: "student_name", label: "Student Name" },
-  { value: "contact_info", label: "Contact Info" },
-  { value: "join_date", label: "Join Date" },
-  { value: "last_session_date", label: "Last Session Date" },
-  { value: "attendance_rate", label: "Attendance Rate" },
-  { value: "last_payment_date", label: "Last Payment Date" },
-  { value: "payment_status", label: "Payment Status" },
-  { value: "total_sessions", label: "Total Sessions" },
-  { value: "fees_amount", label: "Fees Amount" },
-  { value: "subject", label: "Subject" },
-  { value: "tutor_assigned", label: "Tutor Assigned" },
-  { value: "notes", label: "Notes" },
+  { value: "student_name",     label: "Student Name",       desc: "Required. Identifies each student row." },
+  { value: "contact_info",     label: "Contact Info",       desc: "Phone or email for outreach." },
+  { value: "join_date",        label: "Join Date",          desc: "When the student enrolled." },
+  { value: "last_session_date",label: "Last Session Date",  desc: "Days since last session drives risk score." },
+  { value: "attendance_rate",  label: "Attendance Rate",    desc: "0–100 %. Low attendance = high risk." },
+  { value: "last_payment_date",label: "Last Payment Date",  desc: "Date of most recent payment." },
+  { value: "payment_status",   label: "Payment Status",     desc: "Overdue / paid / pending text value." },
+  { value: "total_sessions",   label: "Total Sessions",     desc: "Total sessions attended or scheduled." },
+  { value: "fees_amount",      label: "Fees Amount",        desc: "Monthly fee — used for revenue-at-risk." },
+  { value: "subject",          label: "Subject",            desc: "Class or subject the student is in." },
+  { value: "tutor_assigned",   label: "Tutor Assigned",     desc: "Tutor name linked to this student." },
+  { value: "notes",            label: "Notes",              desc: "Free-text notes shown on student profile." },
 ];
+
+function FieldSelect({ value, onChange, invalid, usedFields, fields }: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  invalid?: boolean;
+  usedFields?: Set<string>;
+  fields?: ImportField[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const fieldOptions: ImportField[] = fields ?? SCHEMA_FIELDS.map((field) => ({ ...field, identifier: false }));
+  const selected = fieldOptions.find((f) => f.value === value);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative", minWidth: 200 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+          padding: "6px 10px", borderRadius: "var(--radius-sm, 6px)", cursor: "pointer",
+          border: `1px solid ${invalid ? "#FCA5A5" : "var(--neutral-200)"}`,
+          background: invalid ? "#FEF2F2" : "#fff",
+          color: invalid ? "#DC2626" : "var(--neutral-800)",
+          fontSize: 13, fontWeight: 500, textAlign: "left",
+        }}
+      >
+        <span>{selected ? selected.label : <span style={{ color: "#DC2626" }}>Unmapped</span>}</span>
+        <ChevronDown size={12} style={{ flexShrink: 0, color: "var(--neutral-400)", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+          background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: 8,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.10)", minWidth: 260, maxHeight: 320, overflowY: "auto",
+        }}>
+          <div
+            onClick={() => { onChange(null); setOpen(false); }}
+            style={{ padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid var(--neutral-100)", color: "var(--neutral-400)", fontSize: 12 }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--neutral-50)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+          >
+            — Unmapped
+          </div>
+          {fieldOptions.map((f) => {
+            const isCurrent = value === f.value;
+            const isTaken = !isCurrent && (usedFields?.has(f.value) ?? false);
+            return (
+              <div
+                key={f.value}
+                onClick={() => { onChange(f.value); setOpen(false); }}
+                style={{
+                  padding: "9px 12px", cursor: "pointer",
+                  background: isCurrent ? "var(--primary-50, #f0fdfa)" : isTaken ? "#FAFAFA" : "",
+                  borderBottom: "1px solid var(--neutral-100)",
+                  display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8,
+                }}
+                onMouseEnter={(e) => { if (!isCurrent) e.currentTarget.style.background = isTaken ? "#F3F4F6" : "var(--neutral-50)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = isCurrent ? "var(--primary-50, #f0fdfa)" : isTaken ? "#FAFAFA" : ""; }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: isCurrent ? "#0F766E" : isTaken ? "var(--neutral-400)" : "var(--neutral-800)" }}>{f.label}</div>
+                  <div style={{ fontSize: 11, color: "var(--neutral-400)", marginTop: 2 }}>{f.desc}</div>
+                </div>
+                {isTaken && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#F59E0B", background: "#FEF3C7", padding: "2px 6px", borderRadius: 99, whiteSpace: "nowrap", flexShrink: 0, marginTop: 2 }}>
+                    <Ban size={9} /> already used
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type Template = { id: string; name: string; isDefault: boolean; mappingJson: unknown };
 
@@ -26,6 +114,8 @@ interface Props {
   uploadId: string;
   initialMappings: MappingResult[];
   templates: Template[];
+  entityType?: EntityType;
+  fields?: ImportField[];
 }
 
 const LAYER_COLORS: Record<MappingLayer, { bg: string; text: string; label: string }> = {
@@ -41,33 +131,101 @@ function confidenceColor(c: number): string {
   return "#DC2626";
 }
 
-export function MappingReview({ uploadId, initialMappings, templates }: Props) {
+function deduplicateMappings(mappings: MappingResult[]): MappingResult[] {
+  // Per target field, keep highest-confidence mapping. Null out duplicates.
+  const bestByField = new Map<string, { col: string; confidence: number }>();
+  for (const m of mappings) {
+    if (!m.suggestedField) continue;
+    const existing = bestByField.get(m.suggestedField);
+    if (!existing || m.confidence > existing.confidence) {
+      bestByField.set(m.suggestedField, { col: m.sourceColumn, confidence: m.confidence });
+    }
+  }
+  return mappings.map((m) => {
+    if (!m.suggestedField) return m;
+    const best = bestByField.get(m.suggestedField);
+    if (best && best.col !== m.sourceColumn) {
+      return { ...m, suggestedField: null, layer: "unmapped" as MappingLayer, confidence: 0 };
+    }
+    return m;
+  });
+}
+
+function suspiciousMappingMessage(mapping: MappingResult): string | null {
+  const key = mapping.sourceColumn.toLowerCase().replace(/[\s_\-()./]/g, "");
+  if ((key === "sessionid" || key === "paymentid") && !mapping.suggestedField) {
+    return `${mapping.sourceColumn} looks like a row ID, not a date.`;
+  }
+  if (key.endsWith("id") && !key.includes("student") && !mapping.suggestedField) {
+    return `${mapping.sourceColumn} looks like a record ID. Leave it unmapped unless it identifies a student.`;
+  }
+  return null;
+}
+
+const IDENTIFIER_WARNINGS: Record<string, string> = {
+  student_identifier: "Best choice. This gives the most accurate matching.",
+  phone: "Good, but siblings may share one parent phone number. Review matches carefully.",
+  email: "Good if every student has a unique email.",
+  student_name: "Risky. Names can be misspelled or duplicated. Rakho AI will ask you to review matches.",
+};
+
+export function MappingReview({ uploadId, initialMappings, templates, entityType = "students", fields }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [mappings, setMappings] = useState<MappingResult[]>(
-    [...initialMappings].sort((a, b) => a.confidence - b.confidence)
+    deduplicateMappings([...initialMappings]).sort((a, b) => a.confidence - b.confidence)
   );
   const [saveTemplate, setSaveTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [setAsDefault, setSetAsDefault] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<"idle" | "saving" | "processing">("idle");
+  const [dupNotice, setDupNotice] = useState<string | null>(null);
+  const fieldOptions: ImportField[] = fields ?? SCHEMA_FIELDS.map((field) => ({ ...field, identifier: false }));
+  const identifierFields = fieldOptions.filter((field) => field.identifier);
+  const initialIdentifier =
+    initialMappings.find((mapping) => mapping.suggestedField === "student_identifier")?.sourceColumn ??
+    initialMappings.find((mapping) => ["email", "phone", "student_name"].includes(mapping.suggestedField ?? ""))?.sourceColumn ??
+    "";
+  const [identifierColumn, setIdentifierColumn] = useState(initialIdentifier);
+  const selectedIdentifierMapping = mappings.find((mapping) => mapping.sourceColumn === identifierColumn);
+  const identifierWarning = selectedIdentifierMapping?.suggestedField
+    ? IDENTIFIER_WARNINGS[selectedIdentifierMapping.suggestedField] ?? null
+    : null;
 
   function handleFieldChange(sourceColumn: string, newField: string | null) {
-    setMappings((prev) =>
-      prev.map((m) =>
-        m.sourceColumn === sourceColumn
-          ? { ...m, suggestedField: newField, confidence: 1.0, layer: "exact" as MappingLayer }
-          : m
-      )
-    );
+    setDupNotice(null);
+    setMappings((prev) => {
+      // If newField is already taken by another column, unmap that column first
+      let bumped: string | null = null;
+      const updated = prev.map((m) => {
+        if (newField && m.sourceColumn !== sourceColumn && m.suggestedField === newField) {
+          bumped = m.sourceColumn;
+          return { ...m, suggestedField: null, layer: "unmapped" as MappingLayer, confidence: 0 };
+        }
+        if (m.sourceColumn === sourceColumn) {
+          return { ...m, suggestedField: newField, confidence: 1.0, layer: "exact" as MappingLayer };
+        }
+        return m;
+      });
+      if (bumped) {
+        const field = SCHEMA_FIELDS.find((f) => f.value === newField);
+        setDupNotice(`"${bumped}" was unmapped — ${field?.label ?? newField} can only be assigned once.`);
+      }
+      return updated;
+    });
   }
 
   async function handleConfirm() {
     setError(null);
-    const hasStudentName = mappings.some((m) => m.suggestedField === "student_name");
-    if (!hasStudentName) {
-      setError("Map at least one column to Student Name before confirming.");
+    const requiredField = entityType === "teachers" ? "teacher_name" : entityType === "students" ? "student_name" : "student_identifier";
+    const hasRequired = mappings.some((m) => m.suggestedField === requiredField);
+    if (!hasRequired) {
+      setError(`Map at least one column to ${fieldOptions.find((f) => f.value === requiredField)?.label ?? requiredField} before confirming.`);
+      return;
+    }
+    if ((entityType === "sessions" || entityType === "payments") && !identifierColumn) {
+      setError("Choose the Student Identifier column before continuing.");
       return;
     }
 
@@ -89,7 +247,8 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
           saveAsTemplate: saveTemplate,
           templateName: saveTemplate ? templateName.trim() : undefined,
           setAsDefault: saveTemplate ? setAsDefault : undefined,
-          processNow: true,
+          identifierColumn: identifierColumn || undefined,
+          processNow: false,
         }),
       });
 
@@ -101,7 +260,7 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
       }
 
       setPhase("processing");
-      router.push(`/dashboard`);
+      router.push(`/uploads/${uploadId}/normalize`);
     });
   }
 
@@ -113,9 +272,39 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
           Map your columns
         </h1>
         <p style={{ fontSize: 14, color: "var(--neutral-500)", marginTop: 6 }}>
-          We auto-mapped your columns. Review and adjust any that look wrong.
+          We auto-mapped this {entityType.slice(0, -1)} file. Review identifiers and any low-confidence matches before import.
         </p>
       </div>
+
+      {identifierFields.length > 0 && (
+        <div style={{ marginBottom: 20, padding: "14px 16px", borderRadius: 8, border: "1px solid var(--neutral-200)", background: "#fff" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--neutral-900)", marginBottom: 8 }}>
+            Student Identifier
+          </div>
+          <div style={{ fontSize: 12, color: "var(--neutral-500)", marginBottom: 10 }}>
+            Rakho AI recommends a stable Student ID, Roll No, Reg No, Admission No, or Student Code. Row number is not valid.
+          </div>
+          <select
+            value={identifierColumn}
+            onChange={(event) => setIdentifierColumn(event.target.value)}
+            style={{ width: "100%", maxWidth: 360, padding: "8px 10px", borderRadius: 6, border: "1px solid var(--neutral-200)", fontSize: 13, color: "var(--neutral-800)", background: "#fff" }}
+          >
+            <option value="">Choose identifier column</option>
+            {mappings
+              .filter((mapping) => ["student_identifier", "email", "phone", "student_name"].includes(mapping.suggestedField ?? ""))
+              .map((mapping) => (
+                <option key={mapping.sourceColumn} value={mapping.sourceColumn}>
+                  {mapping.sourceColumn} {"->"} {fieldOptions.find((field) => field.value === mapping.suggestedField)?.label ?? mapping.suggestedField}
+                </option>
+              ))}
+          </select>
+          {identifierWarning && (
+            <div style={{ marginTop: 10, fontSize: 12, color: selectedIdentifierMapping?.suggestedField === "student_identifier" ? "#047857" : "#92400E" }}>
+              {identifierWarning}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Template selector */}
       {templates.length > 0 && (
@@ -156,6 +345,15 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
         })}
       </div>
 
+      {/* Duplicate field notice */}
+      {dupNotice && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8, background: "#FFFBEB", border: "1px solid #FDE68A", marginBottom: 12, fontSize: 13, color: "#92400E" }}>
+          <AlertCircle size={14} style={{ flexShrink: 0 }} />
+          {dupNotice}
+          <button onClick={() => setDupNotice(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#92400E", fontSize: 16, lineHeight: 1 }}>×</button>
+        </div>
+      )}
+
       {/* Mapping table */}
       <div style={{ border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg, 12px)", overflow: "hidden", marginBottom: 24 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -171,6 +369,7 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
           <tbody>
             {mappings.map((m, i) => {
               const { bg, text, label } = LAYER_COLORS[m.layer];
+              const warning = suspiciousMappingMessage(m);
               return (
                 <tr
                   key={m.sourceColumn}
@@ -181,6 +380,7 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
                 >
                   <td style={tdStyle}>
                     <span style={{ fontWeight: 600, color: "var(--neutral-800)" }}>{m.sourceColumn}</span>
+                    {warning && <div style={{ marginTop: 4, fontSize: 11, color: "#B45309" }}>{warning}</div>}
                   </td>
                   <td style={tdStyle}>
                     <span style={{ color: "var(--neutral-500)", fontFamily: "monospace" }}>
@@ -188,31 +388,13 @@ export function MappingReview({ uploadId, initialMappings, templates }: Props) {
                     </span>
                   </td>
                   <td style={tdStyle}>
-                    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                      <select
-                        value={m.suggestedField ?? ""}
-                        onChange={(e) =>
-                          handleFieldChange(m.sourceColumn, e.target.value || null)
-                        }
-                        style={{
-                          appearance: "none",
-                          padding: "6px 28px 6px 10px",
-                          borderRadius: "var(--radius-sm, 6px)",
-                          border: `1px solid ${m.suggestedField ? "var(--neutral-200)" : "#FCA5A5"}`,
-                          background: m.suggestedField ? "#fff" : "#FEF2F2",
-                          fontSize: 13,
-                          color: m.suggestedField ? "var(--neutral-800)" : "#DC2626",
-                          cursor: "pointer",
-                          minWidth: 180,
-                        }}
-                      >
-                        <option value="">— Ignore —</option>
-                        {SCHEMA_FIELDS.map((f) => (
-                          <option key={f.value} value={f.value}>{f.label}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={12} style={{ position: "absolute", right: 8, pointerEvents: "none", color: "var(--neutral-400)" }} />
-                    </div>
+                    <FieldSelect
+                      value={m.suggestedField ?? null}
+                      onChange={(v) => handleFieldChange(m.sourceColumn, v)}
+                      invalid={!m.suggestedField}
+                      usedFields={new Set(mappings.filter((x) => x.sourceColumn !== m.sourceColumn && x.suggestedField).map((x) => x.suggestedField as string))}
+                      fields={fields}
+                    />
                   </td>
                   <td style={{ ...tdStyle, textAlign: "center" }}>
                     {m.suggestedField ? (

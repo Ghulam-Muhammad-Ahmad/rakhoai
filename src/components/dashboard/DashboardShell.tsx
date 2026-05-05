@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, MessageCircleHeart,
   UserCog, Settings, Search, LogOut, Upload, GraduationCap,
+  CalendarCheck, CreditCard, History,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -13,7 +14,10 @@ const navItems = [
   { href: "/dashboard",     icon: LayoutDashboard,    label: "Risk overview" },
   { href: "/students",      icon: Users,              label: "Students" },
   { href: "/tutors",        icon: GraduationCap,      label: "Tutors" },
+  { href: "/sessions",      icon: CalendarCheck,      label: "Sessions" },
+  { href: "/payments",      icon: CreditCard,         label: "Payments" },
   { href: "/uploads/new",   icon: Upload,             label: "Upload data" },
+  { href: "/uploads/history", icon: History,           label: "Import history" },
   { href: "/interventions", icon: MessageCircleHeart, label: "Interventions" },
 ];
 
@@ -36,7 +40,11 @@ function NavLink({ href, icon: Icon, label, exact = false }: { href: string; ico
       }`}
     >
       <Icon size={18} className={active ? "text-white" : "text-[var(--neutral-400)]"} />
-      <span>{label}</span>
+      <span className={`${
+        active
+          ? "text-white"
+          : "text-[var(--neutral-600)]"
+      }`}>{label}</span>
     </Link>
   );
 }

@@ -1,5 +1,5 @@
 export type DbRiskBand = "HIGH" | "MEDIUM" | "LOW";
-export type RiskLevel = "high" | "medium" | "low" | "safe";
+export type RiskLevel = "high" | "medium" | "low" | "unscored" | "needs_data";
 export type RiskBandFilter = DbRiskBand | "AT_RISK" | "ALL";
 export type StudentRiskSort = "riskScore" | "lastSessionDate" | "feesAmount" | "name";
 export type SortDirection = "asc" | "desc";
@@ -8,6 +8,7 @@ export type RiskLike = {
   id?: string;
   riskBand?: string | null;
   riskScore?: number | null;
+  confidence?: number | null;
   computedAt?: string | null;
 };
 
@@ -48,11 +49,13 @@ export function selectLatestRisk<T extends RiskLike>(assessments: T[] | null | u
   })[0] ?? null;
 }
 
-export function normalizeRiskLevel(riskBand?: string | null): RiskLevel {
+export function normalizeRiskLevel(riskBand?: string | null, confidence?: number | null): RiskLevel {
+  if (!riskBand) return "unscored";
   if (riskBand === "HIGH") return "high";
   if (riskBand === "MEDIUM") return "medium";
+  if (riskBand === "LOW" && confidence != null && confidence < 0.8) return "needs_data";
   if (riskBand === "LOW") return "low";
-  return "safe";
+  return "unscored";
 }
 
 export function selectLatestActionStatus<T extends ActionLike>(actions: T[] | null | undefined): string | null {

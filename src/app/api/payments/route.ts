@@ -1,0 +1,29 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
+import { deletePaymentsForAcademy } from "@/lib/deletions/bulk-delete";
+import { normalizeDeleteIds } from "@/lib/deletions/bulk-delete-core";
+import { createClient } from "@/lib/supabase/server";
+
+export async function DELETE(req: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const dbUser = await getAuthUserWithAcademy(user.id);
+  if (!dbUser.academy) return NextResponse.json({ error: "Academy not found" }, { status: 404 });
+
+  const body = await req.json().catch(() => null);
+  const ids = normalizeDeleteIds(body?.ids);
+  if (ids.length === 0) return NextResponse.json({ error: "At least one payment id is required" }, { status: 400 });
+
+  try {
+    const result = await deletePaymentsForAcademy(dbUser.academy.id, ids);
+    return NextResponse.json({ result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to delete payments";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

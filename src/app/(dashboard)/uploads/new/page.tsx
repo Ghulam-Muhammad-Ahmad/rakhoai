@@ -1,15 +1,252 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
-import { Upload, FileText, AlertCircle, CheckCircle, X } from "lucide-react";
+import { Upload, FileText, AlertCircle, CheckCircle, X, HelpCircle, Loader2, Users, GraduationCap, CalendarCheck, CreditCard } from "lucide-react";
+import { UploadStepper } from "@/components/upload/UploadStepper";
+import type { EntityType } from "@/lib/imports/types";
+
+const REQUIRED_COLS = [
+  { name: "Student Name", example: "Ali Hassan", note: "Required. Used to identify each student." },
+];
+
+const RECOMMENDED_COLS = [
+  { name: "Last Session Date", example: "2024-04-20", note: "Days since last session drives the risk score." },
+  { name: "Attendance Rate", example: "72", note: "Percentage 0–100. Low attendance = high risk." },
+  { name: "Payment Status", example: "Overdue 14d", note: "Any text with 'overdue' or 'unpaid' flags risk." },
+  { name: "Fees Amount", example: "12000", note: "Monthly fee amount. Used for revenue-at-risk calculation." },
+];
+
+const OPTIONAL_COLS = [
+  { name: "Join Date", example: "2023-09-01", note: "Used to show how long a student has been enrolled." },
+  { name: "Subject / Class", example: "Grade 9 · Math", note: "Groups students by class on the dashboard." },
+  { name: "Tutor Assigned", example: "Ms. Rehana", note: "Links students to tutor risk overview." },
+  { name: "Contact / Phone", example: "+92 300 1234567", note: "Shown on student profile for quick outreach." },
+  { name: "Student ID", example: "SR-1042", note: "Your own ID. Shown in tables instead of system ID." },
+  { name: "Notes", example: "Parent prefers WhatsApp", note: "Free-text notes shown on student detail page." },
+];
+
+const STUDENT_IDENTIFIER_ROWS = [
+  { name: "Student ID / Roll No / Reg No", example: "ST-1042", note: "Best choice. Must stay the same across all files." },
+  { name: "Email", example: "ali@example.com", note: "Good if every student has their own unique email." },
+  { name: "Phone", example: "+92 300 1234567", note: "Useful, but siblings may share one parent phone." },
+  { name: "Student Name", example: "Ali Hassan", note: "Allowed, but low confidence. You will review matches." },
+];
+
+const GUIDE_SECTIONS = [
+  {
+    label: "Students",
+    color: "#0F766E",
+    bg: "#F0FDFA",
+    rows: [
+      { name: "student_id", example: "ST-1042", note: "Recommended stable identifier." },
+      { name: "student_name", example: "Ali Hassan", note: "Required for roster display." },
+      { name: "phone / email", example: "+92 300 1234567", note: "Contact and fallback matching." },
+      { name: "subject / teacher_name", example: "Grade 9 Math / Ms Sara", note: "Useful for filtering and teacher pages." },
+      { name: "monthly_fee", example: "12000", note: "Fallback revenue context until payments are uploaded." },
+    ],
+  },
+  {
+    label: "Teachers",
+    color: "#0369A1",
+    bg: "#E0F2FE",
+    rows: [
+      { name: "teacher_name", example: "Ms Sara", note: "Required. Creates or updates teacher records." },
+      { name: "phone / email", example: "sara@example.com", note: "Optional teacher contact details." },
+      { name: "subject", example: "Physics", note: "Optional teaching area." },
+    ],
+  },
+  {
+    label: "Sessions",
+    color: "#7C3AED",
+    bg: "#EDE9FE",
+    rows: [
+      { name: "student_id", example: "ST-1042", note: "Strongly recommended to link attendance." },
+      { name: "session_date", example: "2026-05-01", note: "For long-format attendance files." },
+      { name: "attendance_status", example: "Present", note: "Present, absent, late, attended, or missed." },
+      { name: "date columns", example: "2026-05-01", note: "Wide format is supported when date columns hold attendance values." },
+      { name: "attendance summary", example: "18/22 or 82%", note: "Aggregate format is accepted as summary data." },
+    ],
+  },
+  {
+    label: "Payments",
+    color: "#B45309",
+    bg: "#FEF3C7",
+    rows: [
+      { name: "student_id", example: "ST-1042", note: "Strongly recommended to link payments." },
+      { name: "payment_date", example: "2026-05-03", note: "For transaction-format files." },
+      { name: "amount", example: "12000", note: "Payment amount, currency symbols are okay." },
+      { name: "payment_status", example: "Paid / Overdue", note: "Used for fee-risk signals." },
+      { name: "month columns", example: "Jan 2026", note: "Monthly wide format is supported." },
+    ],
+  },
+];
+
+function ColumnGuideModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(15,23,42,0.45)", backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "#fff", borderRadius: 16, boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
+          width: "100%", maxWidth: 640, maxHeight: "88vh", overflow: "hidden",
+          display: "flex", flexDirection: "column",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--neutral-900)" }}>How to prepare your file</div>
+            <div style={{ fontSize: 13, color: "var(--neutral-500)", marginTop: 2 }}>Column names don&apos;t have to match exactly — we&apos;ll map them automatically.</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--neutral-400)", padding: 4, display: "flex" }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY: "auto", padding: "20px 24px 24px" }}>
+
+          {/* Required */}
+          <SectionLabel label="Required" color="#DC2626" bg="#FEF2F2" />
+          <ColTable rows={REQUIRED_COLS} />
+
+          {/* Recommended */}
+          <SectionLabel label="Highly recommended" color="#D97706" bg="#FFFBEB" style={{ marginTop: 20 }} />
+          <div style={{ fontSize: 13, color: "var(--neutral-500)", marginBottom: 8 }}>
+            These columns power the risk score. More = better predictions.
+          </div>
+          <ColTable rows={RECOMMENDED_COLS} />
+
+          {/* Optional */}
+          <SectionLabel label="Optional but useful" color="#0F766E" bg="#F0FDFA" style={{ marginTop: 20 }} />
+          <ColTable rows={OPTIONAL_COLS} />
+
+          {/* Ideal sheet tip */}
+          <div style={{ marginTop: 24, padding: "14px 16px", background: "var(--neutral-50)", border: "1px solid var(--neutral-200)", borderRadius: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--neutral-800)", marginBottom: 6 }}>
+              Ideal sheet layout
+            </div>
+            <div style={{ fontSize: 12, color: "var(--neutral-500)", lineHeight: 1.6 }}>
+              • Row 1 = column headers (any order, any language)<br />
+              • One student per row<br />
+              • Dates as <code style={{ background: "var(--neutral-100)", padding: "1px 4px", borderRadius: 3 }}>YYYY-MM-DD</code> or <code style={{ background: "var(--neutral-100)", padding: "1px 4px", borderRadius: 3 }}>DD/MM/YYYY</code><br />
+              • Attendance as a number (e.g. <code style={{ background: "var(--neutral-100)", padding: "1px 4px", borderRadius: 3 }}>72</code> not <code style={{ background: "var(--neutral-100)", padding: "1px 4px", borderRadius: 3 }}>72%</code>)<br />
+              • No merged cells, no summary rows at the bottom<br />
+              • One sheet only (first sheet is used if multiple exist)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionLabel({ label, color, bg, style }: { label: string; color: string; bg: string; style?: React.CSSProperties }) {
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 8, ...style }}>
+      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color, background: bg, padding: "2px 8px", borderRadius: 99 }}>{label}</span>
+    </div>
+  );
+}
+
+function ColTable({ rows }: { rows: { name: string; example: string; note: string }[] }) {
+  return (
+    <div style={{ border: "1px solid var(--neutral-200)", borderRadius: 8, overflow: "hidden" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.6fr", background: "var(--neutral-50)", padding: "8px 12px", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", borderBottom: "1px solid var(--neutral-100)" }}>
+        <div>Column name</div><div>Example value</div><div>Why it matters</div>
+      </div>
+      {rows.map((r, i) => (
+        <div key={r.name} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.6fr", padding: "9px 12px", fontSize: 13, borderBottom: i < rows.length - 1 ? "1px solid var(--neutral-100)" : "none", alignItems: "start" }}>
+          <div style={{ fontWeight: 600, color: "var(--neutral-900)" }}>{r.name}</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--neutral-600)" }}>{r.example}</div>
+          <div style={{ color: "var(--neutral-500)", fontSize: 12 }}>{r.note}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StructuredColumnGuideModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(15,23,42,0.45)", backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "#fff", borderRadius: 16, boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
+          width: "100%", maxWidth: 720, maxHeight: "88vh", overflow: "hidden",
+          display: "flex", flexDirection: "column",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--neutral-900)" }}>How to prepare your file</div>
+            <div style={{ fontSize: 13, color: "var(--neutral-500)", marginTop: 2 }}>
+              Choose the file type first. Rakho AI detects the format, then asks you to confirm identifiers and mapping.
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--neutral-400)", padding: 4, display: "flex", flexShrink: 0 }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ overflowY: "auto", padding: "20px 24px 24px" }}>
+          <SectionLabel label="Student Identifier" color="#DC2626" bg="#FEF2F2" />
+          <div style={{ fontSize: 13, color: "var(--neutral-500)", marginBottom: 8 }}>
+            Use the same stable identifier across students, sessions, and payments. Row number is not a valid identifier.
+          </div>
+          <ColTable rows={STUDENT_IDENTIFIER_ROWS} />
+
+          {GUIDE_SECTIONS.map((section, index) => (
+            <div key={section.label}>
+              <SectionLabel label={section.label} color={section.color} bg={section.bg} style={{ marginTop: index === 0 ? 20 : 22 }} />
+              <ColTable rows={section.rows} />
+            </div>
+          ))}
+
+          <div style={{ marginTop: 24, padding: "14px 16px", background: "var(--neutral-50)", border: "1px solid var(--neutral-200)", borderRadius: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--neutral-800)", marginBottom: 6 }}>
+              Supported and unsupported formats
+            </div>
+            <div style={{ fontSize: 12, color: "var(--neutral-500)", lineHeight: 1.6 }}>
+              - Row 1 should contain column headers. Any order is okay.<br />
+              - Sessions can be long format, wide date columns, or aggregate attendance summaries.<br />
+              - Payments can be transactions, monthly wide columns, or aggregate payment summaries.<br />
+              - Avoid merged-cell calendars, color-only tracking, and rows that combine multiple students.<br />
+              - If Rakho AI cannot safely link rows, it shows a review screen instead of guessing.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / 1024 / 1024;
 
 interface PreviewData {
   uploadId: string;
+  importSetId: string;
+  entityType: EntityType;
+  formatType: string;
   fileName: string;
   headers: string[];
   sampleRows: Record<string, string>[];
@@ -17,13 +254,43 @@ interface PreviewData {
   warnings: string[];
 }
 
-type State = "idle" | "uploading" | "preview" | "error";
+const ENTITY_OPTIONS: {
+  value: EntityType;
+  label: string;
+  desc: string;
+  icon: typeof Users;
+}[] = [
+  { value: "students", label: "Students", desc: "Start here. Import roster, identifiers, subjects, fees, and teacher names.", icon: Users },
+  { value: "teachers", label: "Teachers", desc: "Optional context for tutor analytics and cleaner linking.", icon: GraduationCap },
+  { value: "sessions", label: "Sessions", desc: "Attendance and recency history. Requires students first.", icon: CalendarCheck },
+  { value: "payments", label: "Payments", desc: "Fee transactions and overdue signals. Requires students first.", icon: CreditCard },
+];
+
+type State = "checking" | "idle" | "uploading" | "preview" | "error" | "blocked_job";
 
 export default function UploadNewPage() {
   const router = useRouter();
-  const [state, setState] = useState<State>("idle");
+  const [state, setState] = useState<State>("checking");
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [showGuide, setShowGuide] = useState(false);
+  const [activeJobFile, setActiveJobFile] = useState<string>("");
+  const [navigating, setNavigating] = useState(false);
+  const [entityType, setEntityType] = useState<EntityType>("students");
+
+  useEffect(() => {
+    fetch("/api/uploads/active")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.hasActiveJob) {
+          setActiveJobFile(data.upload?.fileName ?? "your file");
+          setState("blocked_job");
+        } else {
+          setState("idle");
+        }
+      })
+      .catch(() => setState("idle"));
+  }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -34,6 +301,7 @@ export default function UploadNewPage() {
 
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("entityType", entityType);
 
     try {
       const res = await fetch("/api/uploads", {
@@ -44,8 +312,13 @@ export default function UploadNewPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorMsg(data.error ?? "Upload failed");
-        setState("error");
+        if (data.activeUploadId) {
+          setActiveJobFile(data.upload?.fileName ?? "your file");
+          setState("blocked_job");
+        } else {
+          setErrorMsg(data.error ?? "Upload failed");
+          setState("error");
+        }
         return;
       }
 
@@ -55,7 +328,7 @@ export default function UploadNewPage() {
       setErrorMsg("Network error. Please try again.");
       setState("error");
     }
-  }, []);
+  }, [entityType]);
 
   const { getRootProps, getInputProps, isDragActive, fileRejections } =
     useDropzone({
@@ -79,24 +352,108 @@ export default function UploadNewPage() {
 
   return (
     <div className="page-fade" style={{ maxWidth: 860, margin: "0 auto" }}>
-      <div style={{ marginBottom: 28 }}>
-        <h1
+      {showGuide && <StructuredColumnGuideModal onClose={() => setShowGuide(false)} />}
+
+      <UploadStepper currentStep="upload" />
+
+      {state === "checking" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--neutral-500)", fontSize: 14, padding: "40px 0" }}>
+          <Loader2 size={18} style={{ animation: "spin 0.7s linear infinite" }} />
+          Checking…
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      {state === "blocked_job" && (
+        <div style={{ padding: "20px 24px", borderRadius: 12, background: "#FFFBEB", border: "1px solid #FDE68A", display: "flex", gap: 14 }}>
+          <AlertCircle size={20} color="#D97706" style={{ flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: "#92400E", marginBottom: 4 }}>Scoring in progress</div>
+            <div style={{ fontSize: 13, color: "#78350F", lineHeight: 1.6 }}>
+              <strong>{activeJobFile}</strong> is currently being scored. Wait for it to finish before uploading new data.
+            </div>
+            <button
+              onClick={() => router.push("/dashboard")}
+              style={{ marginTop: 12, fontSize: 13, fontWeight: 500, padding: "7px 14px", borderRadius: "var(--radius-md)", border: "1px solid #FDE68A", background: "#fff", color: "#92400E", cursor: "pointer" }}
+            >
+              Go to dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {state !== "blocked_job" && state !== "checking" && <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
+        <div>
+          <h1
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 28,
+              fontWeight: 500,
+              color: "var(--neutral-900)",
+              letterSpacing: "-0.02em",
+              margin: 0,
+            }}
+          >
+            Structured import
+          </h1>
+          <p style={{ fontSize: 14, color: "var(--neutral-500)", marginTop: 6 }}>
+            Start with students, then add sessions and payments when you have them.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowGuide(true)}
           style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 28,
-            fontWeight: 500,
-            color: "var(--neutral-900)",
-            letterSpacing: "-0.02em",
-            margin: 0,
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 13, fontWeight: 500, color: "var(--primary-600, #0F766E)",
+            background: "var(--primary-50, #f0fdfa)", border: "1px solid var(--primary-100, #ccfbf1)",
+            borderRadius: "var(--radius-md)", padding: "7px 12px", cursor: "pointer",
+            whiteSpace: "nowrap", marginTop: 4,
           }}
         >
-          Upload student data
-        </h1>
-        <p style={{ fontSize: 14, color: "var(--neutral-500)", marginTop: 6 }}>
-          Upload a CSV or Excel file. Any column names — we&apos;ll map them for you.
-        </p>
-      </div>
+          <HelpCircle size={14} />
+          How to prepare your file
+        </button>
+      </div>}
 
+      {state !== "blocked_job" && state !== "checking" && <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 20 }}>
+        {ENTITY_OPTIONS.map((option) => {
+          const Icon = option.icon;
+          const selected = entityType === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setEntityType(option.value)}
+              style={{
+                textAlign: "left",
+                padding: 14,
+                borderRadius: 8,
+                border: `1px solid ${selected ? "#0F766E" : "var(--neutral-200)"}`,
+                background: selected ? "#F0FDFA" : "#fff",
+                color: "var(--neutral-800)",
+                cursor: "pointer",
+                minHeight: 118,
+              }}
+            >
+              <Icon size={17} color={selected ? "#0F766E" : "var(--neutral-500)"} />
+              <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, marginBottom: 4 }}>{option.label}</div>
+              <div style={{ fontSize: 11, lineHeight: 1.45, color: "var(--neutral-500)" }}>{option.desc}</div>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--neutral-200)", background: "#fff" }}>
+        <div style={{ fontSize: 12, color: "var(--neutral-600)" }}>
+          Recommended: keep a stable <strong>Student ID / Roll No / Reg No</strong> across every file. Row number is not valid.
+        </div>
+        <a
+          href={`/api/import-templates/${entityType}`}
+          style={{ fontSize: 12, fontWeight: 600, color: "#0F766E", textDecoration: "none", whiteSpace: "nowrap" }}
+        >
+          Download {entityType} template
+        </a>
+      </div>
       {/* Drop zone */}
       {(state === "idle" || state === "error") && (
         <>
@@ -219,7 +576,7 @@ export default function UploadNewPage() {
                 {preview.fileName}
               </span>
               <span style={{ fontSize: 13, color: "var(--neutral-500)" }}>
-                · {preview.totalRows.toLocaleString()} rows detected
+                · {preview.totalRows.toLocaleString()} rows detected · {preview.entityType} · {preview.formatType}
               </span>
             </div>
             <button
@@ -357,27 +714,30 @@ export default function UploadNewPage() {
               Upload different file
             </button>
             <button
-              onClick={() => router.push(`/uploads/${preview.uploadId}/map`)}
+              onClick={() => { setNavigating(true); router.push(`/uploads/${preview.uploadId}/map`); }}
+              disabled={navigating}
               style={{
                 fontSize: 14,
                 fontWeight: 500,
                 padding: "9px 16px",
                 borderRadius: "var(--radius-md)",
                 border: "none",
-                background: "var(--primary-500)",
+                background: navigating ? "var(--neutral-300)" : "var(--primary-500)",
                 color: "#fff",
-                cursor: "pointer",
+                cursor: navigating ? "not-allowed" : "pointer",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
+                opacity: navigating ? 0.7 : 1,
               }}
             >
-              <CheckCircle size={14} />
-              Map columns →
+              {navigating ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> : <CheckCircle size={14} />}
+              {navigating ? "Loading…" : "Detect format & map →"}
             </button>
           </div>
         </div>
       )}
+      </>}
     </div>
   );
 }

@@ -6,6 +6,8 @@ const map: Record<RiskLevel, { bg: string; fg: string; dot: string; label: strin
   medium:   { bg: "#FEF3C7", fg: "#B45309", dot: "#F59E0B", label: "Medium"   },
   low:      { bg: "#FEF9C3", fg: "#854D0E", dot: "#FCD34D", label: "Low"      },
   safe:     { bg: "#D1FAE5", fg: "#047857", dot: "#10B981", label: "Safe"     },
+  unscored: { bg: "#F3F4F6", fg: "#4B5563", dot: "#9CA3AF", label: "Not scored yet" },
+  needs_data: { bg: "#FEF3C7", fg: "#92400E", dot: "#F59E0B", label: "Needs more data" },
 };
 
 export default function RiskBadge({ level }: { level: RiskLevel }) {

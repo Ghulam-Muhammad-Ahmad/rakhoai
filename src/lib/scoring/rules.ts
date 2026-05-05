@@ -36,6 +36,28 @@ export function computeRuleScore(
     reasons.push(`Payment status is ${student.paymentStatus}`);
   }
 
+  const structuredSignals = student.rawData.structuredSignals as
+    | { paymentDataMissing?: boolean; latePayments?: number; rescheduledSessions?: number; cancelledSessions?: number }
+    | undefined;
+
+  if (structuredSignals?.paymentDataMissing) {
+    reasons.push("Payment data missing for this student");
+  }
+
+  if (structuredSignals?.latePayments) {
+    score += 10;
+    reasons.push(`${structuredSignals.latePayments} late payment${structuredSignals.latePayments === 1 ? "" : "s"} detected`);
+  }
+
+  if (structuredSignals?.rescheduledSessions) {
+    score += 5;
+    reasons.push(`${structuredSignals.rescheduledSessions} rescheduled session${structuredSignals.rescheduledSessions === 1 ? "" : "s"} detected`);
+  }
+
+  if (structuredSignals?.cancelledSessions) {
+    reasons.push(`${structuredSignals.cancelledSessions} cancelled session${structuredSignals.cancelledSessions === 1 ? "" : "s"} tracked separately`);
+  }
+
   if (!student.tutor) {
     score += 10;
     reasons.push("No tutor is assigned");

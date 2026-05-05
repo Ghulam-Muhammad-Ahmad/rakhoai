@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { createAction } from "@/lib/actions/actions";
 import { isActionStatus } from "@/lib/actions/action-core";
+import { deleteActionsForAcademy } from "@/lib/deletions/bulk-delete";
+import { normalizeDeleteIds } from "@/lib/deletions/bulk-delete-core";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -43,5 +45,35 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create action";
     return NextResponse.json({ error: message }, { status: message === "Student not found" ? 404 : 400 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const dbUser = await getAuthUserWithAcademy(user.id);
+  if (!dbUser.academy) {
+    return NextResponse.json({ error: "Academy not found" }, { status: 404 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const ids = normalizeDeleteIds(body?.ids);
+  if (ids.length === 0) {
+    return NextResponse.json({ error: "At least one intervention id is required" }, { status: 400 });
+  }
+
+  try {
+    const result = await deleteActionsForAcademy(dbUser.academy.id, ids);
+    return NextResponse.json({ result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to delete interventions";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

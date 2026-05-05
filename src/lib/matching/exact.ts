@@ -1,131 +1,49 @@
-const ALIASES: Record<string, string> = {
-  // student_name
-  name: "student_name",
-  studentname: "student_name",
-  student: "student_name",
-  fullname: "student_name",
-  studentfullname: "student_name",
-  pupilname: "student_name",
-  learnername: "student_name",
+type AliasEntry = { keys: string[]; field: string };
 
-  // contact_info
-  contact: "contact_info",
-  contactinfo: "contact_info",
-  email: "contact_info",
-  phone: "contact_info",
-  mobile: "contact_info",
-  phonenumber: "contact_info",
-  emailaddress: "contact_info",
-  contactnumber: "contact_info",
-  whatsapp: "contact_info",
-
-  // join_date
-  joindate: "join_date",
-  joined: "join_date",
-  startdate: "join_date",
-  enrollmentdate: "join_date",
-  enrolldate: "join_date",
-  datejoined: "join_date",
-  admissiondate: "join_date",
-  registrationdate: "join_date",
-
-  // last_session_date
-  lastsessiondate: "last_session_date",
-  lastsession: "last_session_date",
-  lastattendance: "last_session_date",
-  lastclass: "last_session_date",
-  lastclassdate: "last_session_date",
-  lastattended: "last_session_date",
-  recentattendance: "last_session_date",
-  lastpresent: "last_session_date",
-
-  // attendance_rate
-  attendancerate: "attendance_rate",
-  attendance: "attendance_rate",
-  attendancepercent: "attendance_rate",
-  attendancepercentage: "attendance_rate",
-  attend: "attendance_rate",
-  attendpct: "attendance_rate",
-  attendancepct: "attendance_rate",
-  presencerate: "attendance_rate",
-
-  // last_payment_date
-  lastpaymentdate: "last_payment_date",
-  lastpayment: "last_payment_date",
-  lastpaid: "last_payment_date",
-  paymentdate: "last_payment_date",
-  datepaid: "last_payment_date",
-  lastfeedate: "last_payment_date",
-
-  // payment_status
-  paymentstatus: "payment_status",
-  feestatus: "payment_status",
-  payingstatus: "payment_status",
-  paid: "payment_status",
-  paymentstates: "payment_status",
-  status: "payment_status",
-  feesstatus: "payment_status",
-
-  // total_sessions
-  totalsessions: "total_sessions",
-  sessioncount: "total_sessions",
-  sessions: "total_sessions",
-  totalsessioncount: "total_sessions",
-  classcount: "total_sessions",
-  totalclasses: "total_sessions",
-  numclasses: "total_sessions",
-  numsessions: "total_sessions",
-
-  // fees_amount
-  feesamount: "fees_amount",
-  fees: "fees_amount",
-  amount: "fees_amount",
-  fee: "fees_amount",
-  monthlyfee: "fees_amount",
-  monthlyamount: "fees_amount",
-  tuitionfee: "fees_amount",
-  tuition: "fees_amount",
-  price: "fees_amount",
-
-  // subject
-  subject: "subject",
-  course: "subject",
-  coursename: "subject",
-  subjectname: "subject",
-  class: "subject",
-  classname: "subject",
-  topic: "subject",
-  grade: "subject",
-
-  // tutor_assigned
-  tutorassigned: "tutor_assigned",
-  tutor: "tutor_assigned",
-  teacher: "tutor_assigned",
-  instructor: "tutor_assigned",
-  teachername: "tutor_assigned",
-  tutorname: "tutor_assigned",
-  assignedtutor: "tutor_assigned",
-  assignedteacher: "tutor_assigned",
-
-  // notes
-  notes: "notes",
-  note: "notes",
-  remarks: "notes",
-  comments: "notes",
-  comment: "notes",
-  observations: "notes",
-  additionalinfo: "notes",
-};
+const ALIASES: AliasEntry[] = [
+  { field: "student_identifier", keys: ["studentid", "studentcode", "rollno", "regno", "registrationno", "admissionno", "externalid"] },
+  { field: "student_name", keys: ["name", "studentname", "student", "fullname", "studentfullname", "pupilname", "learnername"] },
+  { field: "contact_info", keys: ["contact", "contactinfo", "contactnumber", "whatsapp"] },
+  { field: "email", keys: ["email", "emailaddress", "studentemail", "emailid"] },
+  { field: "phone", keys: ["phone", "mobile", "phonenumber", "studentphone", "parentphone", "parentmobile"] },
+  { field: "join_date", keys: ["joindate", "joined", "startdate", "enrollmentdate", "enrolldate", "datejoined", "admissiondate", "registrationdate"] },
+  { field: "last_session_date", keys: ["lastsessiondate", "lastsession", "lastattendance", "lastclass", "lastclassdate", "lastattended", "recentattendance", "lastpresent"] },
+  { field: "attendance_rate", keys: ["attendancerate", "attendance", "attendancepercent", "attendancepercentage", "attend", "attendpct", "attendancepct", "presencerate"] },
+  { field: "last_payment_date", keys: ["lastpaymentdate", "lastpayment", "lastpaid", "lastfeedate"] },
+  { field: "payment_status", keys: ["paymentstatus", "feestatus", "payingstatus", "paid", "paymentstates", "feesstatus"] },
+  { field: "total_sessions", keys: ["totalsessions", "sessioncount", "sessions", "totalsessioncount", "classcount", "totalclasses", "numclasses", "numsessions"] },
+  { field: "fees_amount", keys: ["feesamount", "fees", "fee", "monthlyfee", "monthlyamount", "tuitionfee", "tuition", "price"] },
+  { field: "monthly_fee", keys: ["monthlyfee", "monthlyamount", "feesamount", "tuitionfee"] },
+  { field: "subject", keys: ["subject", "course", "coursename", "subjectname", "class", "classname", "topic", "grade"] },
+  { field: "tutor_assigned", keys: ["tutorassigned", "tutor", "teacher", "instructor", "teachername", "tutorname", "assignedtutor", "assignedteacher"] },
+  { field: "teacher_name", keys: ["teachername", "teacher", "tutor", "tutorname", "instructor", "assignedteacher"] },
+  { field: "notes", keys: ["notes", "note", "remarks", "comments", "comment", "observations", "additionalinfo"] },
+  { field: "session_date", keys: ["sessiondate", "classdate", "attendancedate", "date"] },
+  { field: "session_id", keys: ["sessionid", "classid", "attendanceid"] },
+  { field: "attendance_status", keys: ["attendancestatus", "presentabsent", "present", "absent", "status"] },
+  { field: "duration_minutes", keys: ["duration", "durationminutes", "minutes", "sessionduration"] },
+  { field: "attended_sessions", keys: ["attendedsessions", "presentcount", "attendedclasses"] },
+  { field: "payment_id", keys: ["paymentid", "invoiceid", "receiptid", "transactionid", "txnid"] },
+  { field: "billing_month", keys: ["billingmonth", "month", "feemonth"] },
+  { field: "due_date", keys: ["duedate", "paymentdue", "feeduedate"] },
+  { field: "paid_date", keys: ["paiddate", "datepaid", "receiveddate"] },
+  { field: "payment_date", keys: ["paymentdate", "datepaid", "paiddate"] },
+  { field: "amount", keys: ["amount", "amountpaid", "paidamount", "paymentamount"] },
+  { field: "overdue_amount", keys: ["overdueamount", "unpaidamount", "balance", "dueamount"] },
+  { field: "method", keys: ["method", "paymentmethod", "mode", "paymentmode"] },
+];
 
 function normalize(s: string): string {
-  return s.toLowerCase().replace(/[\s_\-().]/g, "");
+  return s.toLowerCase().replace(/[\s_\-()./]/g, "");
 }
 
 export function exactMatch(
-  column: string
+  column: string,
+  allowedFields?: readonly string[]
 ): { field: string; confidence: 1.0 } | null {
   const key = normalize(column);
-  const field = ALIASES[key];
-  if (!field) return null;
-  return { field, confidence: 1.0 };
+  const allowed = allowedFields ? new Set(allowedFields) : null;
+  const match = ALIASES.find((entry) => entry.keys.includes(key) && (!allowed || allowed.has(entry.field)));
+  if (!match) return null;
+  return { field: match.field, confidence: 1.0 };
 }

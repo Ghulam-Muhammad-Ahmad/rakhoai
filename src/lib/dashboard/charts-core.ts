@@ -9,12 +9,14 @@ export type DashboardRiskRow = {
 export function buildRiskBreakdown(rows: DashboardRiskRow[]) {
   const high = rows.filter((row) => row.riskBand === "HIGH").length;
   const medium = rows.filter((row) => row.riskBand === "MEDIUM").length;
-  const low = rows.filter((row) => row.riskBand === "LOW" || row.riskBand === null).length;
+  const low = rows.filter((row) => row.riskBand === "LOW").length;
+  const unscored = rows.filter((row) => row.riskBand === null).length;
 
   return [
     { label: "High", value: high, color: "#DC2626" },
     { label: "Medium", value: medium, color: "#F59E0B" },
     { label: "Low", value: low, color: "#10B981" },
+    { label: "Not scored", value: unscored, color: "#9CA3AF" },
   ];
 }
 
@@ -72,9 +74,7 @@ export function buildRetentionTrend(assessments: RetentionAssessmentRow[]): { mo
       continue;
     }
 
-    const retained = inMonth.filter(
-      (a) => a.riskBand === "LOW" || a.riskBand === null
-    ).length;
+    const retained = inMonth.filter((a) => a.riskBand === "LOW").length;
 
     result.push({
       month: monthLabel,

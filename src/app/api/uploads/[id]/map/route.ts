@@ -3,10 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db/client";
 import { getAcademyIdForSupabaseUser } from "@/lib/db/auth-user";
 import { runMapping, MappingResult } from "@/lib/matching";
+import { getIdentifierQuality } from "@/lib/imports/identifiers";
+import { getImportFields, getRequiredField } from "@/lib/imports/schema";
+import type { EntityType } from "@/lib/imports/types";
 import type { Json } from "@/lib/db/database.types";
 import { z } from "zod";
 import crypto from "node:crypto";
-import { processMappedUpload } from "@/lib/scoring/process-upload";
+import { processStructuredUpload } from "@/lib/imports/process-upload";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -21,7 +24,7 @@ async function getAuthorizedUpload(uploadId: string, supabaseUserId: string) {
     .maybeSingle();
 
   if (!upload || upload.academyId !== academyId) return null;
-  return { upload, academyId };
+  return { upload: upload as typeof upload & Record<string, unknown>, academyId };
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {
@@ -47,6 +50,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
   return NextResponse.json({
     uploadId: upload.id,
     fileName: upload.fileName,
+    entityType: upload.entityType ?? "students",
+    formatType: upload.formatType ?? null,
+    identifier: upload.identifierJson ?? null,
+    fields: getImportFields((upload.entityType ?? "students") as EntityType),
     status: upload.status,
     mappings: (upload.mappingJson as MappingResult[] | null) ?? [],
     templates: templates ?? [],
@@ -82,16 +89,24 @@ export async function POST(_req: NextRequest, { params }: Params) {
     ? (defaultTemplate.mappingJson as Record<string, string | null>)
     : null;
 
-  const mappings = await runMapping(headers, sampleRows, upload.id, templateMap);
+  const entityType = (upload.entityType ?? "students") as EntityType;
+  const mappings = await runMapping(headers, sampleRows, upload.id, templateMap, entityType);
 
-  const { error: updateError } = await db
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updateError } = await (db as any)
     .from("Upload")
     .update({ mappingJson: mappings as unknown as Json })
     .eq("id", upload.id);
 
   if (updateError) return NextResponse.json({ error: "Failed to save mappings" }, { status: 500 });
 
-  return NextResponse.json({ mappings });
+  return NextResponse.json({
+    mappings,
+    entityType,
+    formatType: upload.formatType ?? null,
+    fields: getImportFields(entityType),
+    identifier: upload.identifierJson ?? null,
+  });
 }
 
 const PatchSchema = z.object({
@@ -105,6 +120,7 @@ const PatchSchema = z.object({
   templateName: z.string().optional(),
   setAsDefault: z.boolean().optional(),
   processNow: z.boolean().optional(),
+  identifierColumn: z.string().nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -125,10 +141,34 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const hasStudentName = body.mappings.some((m) => m.targetField === "student_name");
-  if (!hasStudentName) {
+  const entityType = (upload.entityType ?? "students") as EntityType;
+  const requiredField = getRequiredField(entityType);
+  const hasRequiredField = body.mappings.some((m) => m.targetField === requiredField);
+  if (!hasRequiredField) {
     return NextResponse.json(
-      { error: "student_name field must be mapped before confirming" },
+      { error: `${requiredField} field must be mapped before confirming` },
+      { status: 400 }
+    );
+  }
+
+  const identifierColumn =
+    body.identifierColumn ??
+    body.mappings.find((m) => ["student_identifier", "email", "phone", "student_name"].includes(m.targetField ?? ""))?.sourceColumn ??
+    null;
+  const identifierMapping = identifierColumn
+    ? body.mappings.find((m) => m.sourceColumn === identifierColumn) ?? null
+    : null;
+  const identifierJson = identifierColumn && identifierMapping?.targetField
+    ? {
+        sourceColumn: identifierColumn,
+        targetField: identifierMapping.targetField,
+        quality: getIdentifierQuality(identifierMapping.targetField === "student_identifier" ? identifierColumn : identifierMapping.targetField),
+      }
+    : null;
+
+  if ((entityType === "sessions" || entityType === "payments") && !identifierJson) {
+    return NextResponse.json(
+      { error: "Choose a Student Identifier before confirming sessions or payments." },
       { status: 400 }
     );
   }
@@ -144,12 +184,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       : m
   );
 
-  const { error: updateError } = await db
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updateError } = await (db as any)
     .from("Upload")
-    .update({ mappingJson: updated as unknown as Json, status: "MAPPED" })
+    .update({ mappingJson: updated as unknown as Json, identifierJson: identifierJson as unknown as Json, status: "MAPPED" })
     .eq("id", upload.id);
 
   if (updateError) return NextResponse.json({ error: "Failed to confirm mapping" }, { status: 500 });
+  if (upload.importSetId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).from("ImportSet").update({
+      [`${entityType}Status`]: "mapped",
+      updatedAt: new Date().toISOString(),
+    }).eq("id", upload.importSetId);
+  }
 
   if (body.saveAsTemplate && body.templateName) {
     const templateJson = Object.fromEntries(
@@ -179,7 +227,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (body.processNow) {
     try {
-      const processing = await processMappedUpload(upload.id, academyId);
+      const processing = await processStructuredUpload(upload.id, academyId);
       return NextResponse.json({
         mappings: updated,
         status: "PROCESSED",

@@ -109,7 +109,7 @@ function toListItem(row: StudentWithRelations, currencySymbol = "$"): StudentRis
     lastSessionLabel: formatDate(row.lastSessionDate),
     lastSessionDate: row.lastSessionDate,
     riskBand: (latestRisk?.riskBand as DbRiskBand | undefined) ?? null,
-    riskLevel: normalizeRiskLevel(latestRisk?.riskBand),
+    riskLevel: normalizeRiskLevel(latestRisk?.riskBand, latestRisk?.confidence),
     riskScore: latestRisk?.riskScore ?? null,
     reasons: latestRisk ? reasonsFromJson(latestRisk.reasonsJson) : [],
     recommendedAction: latestRisk?.recommendedAction ?? null,
@@ -126,6 +126,7 @@ function toFilterableRow(item: StudentRiskListItem) {
       ? {
           riskBand: item.riskBand,
           riskScore: item.riskScore,
+          confidence: item.confidence,
           computedAt: item.computedAt,
         }
       : null,
