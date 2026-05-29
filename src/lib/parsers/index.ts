@@ -7,18 +7,26 @@ export interface ParseResult {
   rows: Record<string, string>[];
   totalRows: number;
   warnings: string[];
+  /** Populated for Excel files with more than one sheet, so callers can prompt the user to choose. */
+  sheetNames?: string[];
+}
+
+export interface ParseOptions {
+  /** For Excel files: which sheet to parse. Falls back to the first sheet if not found. */
+  sheet?: string;
 }
 
 export async function parseFile(
   buffer: Buffer,
-  fileName: string
+  fileName: string,
+  options: ParseOptions = {}
 ): Promise<ParseResult> {
   const ext = fileName.split(".").pop()?.toLowerCase();
 
   if (ext === "csv") {
     return parseCSV(buffer);
   } else if (ext === "xlsx" || ext === "xls") {
-    return parseExcel(buffer);
+    return parseExcel(buffer, options.sheet);
   } else {
     throw new Error(`Unsupported file type: .${ext}`);
   }
@@ -49,11 +57,16 @@ function parseCSV(buffer: Buffer): ParseResult {
   };
 }
 
-function parseExcel(buffer: Buffer): ParseResult {
+function parseExcel(buffer: Buffer, chosenSheet?: string): ParseResult {
   const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
   const warnings: string[] = [];
 
-  const sheetName = workbook.SheetNames[0];
+  // Resolve which sheet to use
+  const resolvedSheet =
+    chosenSheet && workbook.SheetNames.includes(chosenSheet)
+      ? chosenSheet
+      : workbook.SheetNames[0];
+  const sheetName = resolvedSheet;
   const sheet = workbook.Sheets[sheetName];
 
   // Detect merged cells
@@ -78,11 +91,18 @@ function parseExcel(buffer: Buffer): ParseResult {
       ? Object.keys(nonEmpty[0])
       : XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })[0] ?? [];
 
-  return {
+  const result: ParseResult = {
     headers,
     sampleRows: nonEmpty.slice(0, 5),
     rows: nonEmpty,
     totalRows: nonEmpty.length,
     warnings,
   };
+
+  // Surface all sheet names when there are multiple, so callers can prompt the user to choose
+  if (workbook.SheetNames.length > 1 && !chosenSheet) {
+    result.sheetNames = workbook.SheetNames;
+  }
+
+  return result;
 }

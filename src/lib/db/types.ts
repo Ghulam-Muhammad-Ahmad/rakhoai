@@ -30,3 +30,31 @@ export type RiskAssessmentUpdate = Tables["RiskAssessment"]["Update"];
 export type ColumnMappingUpdate  = Tables["ColumnMapping"]["Update"];
 export type AcademyUpdate        = Tables["Academy"]["Update"];
 export type EmailAlertUpdate     = Tables["EmailAlert"]["Update"];
+
+// UI types formerly in src/lib/data.ts — moved here so data.ts can be deleted
+export type RiskLevel = "critical" | "high" | "medium" | "low" | "safe" | "unscored" | "needs_data";
+export type AvatarTone = "primary" | "accent" | "blue" | "rose" | "slate";
+
+// Tutor — not yet in generated types (table exists in DB but not reflected in
+// database.types.ts snapshot). Defined manually until next `supabase gen types`.
+export type TutorRow = {
+  id: string;
+  academyId: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+export type TutorInsert = {
+  id: string;
+  academyId: string;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+export type TutorUpdate = {
+  id?: string;
+  academyId?: string;
+  name?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};

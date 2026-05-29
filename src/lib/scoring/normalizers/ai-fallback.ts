@@ -27,7 +27,7 @@ Values: ${JSON.stringify(unique)}`;
     const response = await createLoggedChatCompletion({
       academyId: opts.academyId,
       uploadId: opts.uploadId,
-      feature: "column_mapping",
+      feature: "normalization",
       model: MODEL,
       payloadForHash: { type: "attendance_normalization", values: unique },
       request: {
@@ -72,7 +72,7 @@ Values: ${JSON.stringify(unique)}`;
     const response = await createLoggedChatCompletion({
       academyId: opts.academyId,
       uploadId: opts.uploadId,
-      feature: "column_mapping",
+      feature: "normalization",
       model: MODEL,
       payloadForHash: { type: "payment_normalization", values: unique },
       request: {

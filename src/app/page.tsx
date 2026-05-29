@@ -4,19 +4,19 @@ import { Activity, MessageCircleHeart, Layers, Check } from "lucide-react";
 
 function Header() {
   return (
-    <header style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(10px)", borderBottom: "1px solid var(--neutral-100)" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 16, paddingBottom: 16 }}>
-        <Link href="/" style={{ display: "flex" }}>
+    <header className="sticky top-0 z-10 bg-white/85 backdrop-blur-[10px] border-b border-[var(--neutral-100)]">
+      <div className="max-w-[1200px] mx-auto px-8 flex items-center justify-between py-4">
+        <Link href="/" className="flex">
           <Image src="/assets/logo.png" alt="Rakho AI" width={126} height={34} priority />
         </Link>
-        <nav style={{ display: "flex", gap: 28 }}>
+        <nav className="flex gap-7">
           {["Features", "How it works", "Pricing", "Stories"].map(l => (
-            <a key={l} href={`#${l.toLowerCase().replace(" ", "")}`} style={{ fontSize: 14, fontWeight: 500, color: "var(--neutral-700)", textDecoration: "none" }}>{l}</a>
+            <a key={l} href={`#${l.toLowerCase().replace(" ", "")}`} className="text-sm font-medium text-[var(--neutral-700)] no-underline">{l}</a>
           ))}
         </nav>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <Link href="/dashboard" style={{ fontSize: 14, fontWeight: 500, padding: "10px 16px", borderRadius: "var(--radius-md)", color: "var(--neutral-700)", textDecoration: "none" }}>Sign in</Link>
-          <Link href="/dashboard" style={{ fontSize: 14, fontWeight: 500, padding: "10px 16px", borderRadius: "var(--radius-md)", background: "var(--primary-500)", color: "#fff", textDecoration: "none" }}>Book a walkthrough</Link>
+        <div className="flex gap-2.5 items-center">
+          <Link href="/login" className="text-sm font-medium px-4 py-2.5 rounded-[var(--radius-md)] text-[var(--neutral-700)] no-underline">Sign in</Link>
+          <Link href="/signup" className="text-sm font-medium px-4 py-2.5 rounded-[var(--radius-md)] bg-[var(--primary-500)] text-white no-underline">Book a walkthrough</Link>
         </div>
       </div>
     </header>
@@ -25,8 +25,8 @@ function Header() {
 
 function Hero() {
   return (
-    <section style={{ position: "relative", padding: "100px 0 80px", background: "var(--primary-50)", overflow: "hidden" }}>
-      <svg style={{ position: "absolute", right: -80, top: 40, width: 520, opacity: 0.16, color: "var(--primary-500)", pointerEvents: "none" }} viewBox="0 0 240 200" fill="none">
+    <section className="relative bg-[var(--primary-50)] overflow-hidden" style={{ padding: "100px 0 80px" }}>
+      <svg className="absolute right-[-80px] top-10 w-[520px] opacity-[0.16] text-[var(--primary-500)] pointer-events-none" viewBox="0 0 240 200" fill="none">
         <g stroke="currentColor" strokeWidth="1.4" fill="none">
           <path d="M120 30 C 70 50 50 100 70 150 C 90 185 150 180 170 145 C 190 110 180 60 130 32"/>
           <path d="M120 55 C 90 70 80 105 95 135 C 110 160 145 158 158 132 C 170 105 160 70 128 56"/>
@@ -34,67 +34,73 @@ function Hero() {
         </g>
       </svg>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px", display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 48, alignItems: "center", position: "relative" }}>
+      <div className="max-w-[1200px] mx-auto px-8 grid gap-12 items-center relative" style={{ gridTemplateColumns: "1.1fr 1fr" }}>
         <div>
-          <span style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--primary-600)", marginBottom: 18, display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--primary-100)", borderRadius: "var(--radius-full)" }}>
-            <span style={{ width: 6, height: 6, borderRadius: "var(--radius-full)", background: "var(--primary-500)" }} />
+          <span className="font-[var(--font-body)] text-[13px] font-semibold tracking-[0.06em] uppercase text-[var(--primary-600)] mb-[18px] inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--primary-100)] rounded-[var(--radius-full)]">
+            <span className="w-1.5 h-1.5 rounded-[var(--radius-full)] bg-[var(--primary-500)]" />
             For tutoring centers
           </span>
-          <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 60, lineHeight: 1.05, letterSpacing: "-0.025em", color: "var(--neutral-900)", margin: "0 0 22px" }}>
+          <h1 className="font-[var(--font-display)] font-medium text-[60px] leading-[1.05] tracking-[-0.025em] text-[var(--neutral-900)] mt-0 mb-[22px]">
             Stop losing{" "}
-            <span style={{ position: "relative", whiteSpace: "nowrap" }}>
+            <span className="relative whitespace-nowrap">
               students
-              <svg style={{ position: "absolute", left: -4, right: -4, bottom: -16, width: "calc(100% + 8px)" }} viewBox="0 0 320 60" preserveAspectRatio="none">
+              <svg className="absolute bottom-[-16px] w-[calc(100%+8px)]" style={{ left: -4, right: -4 }} viewBox="0 0 320 60" preserveAspectRatio="none">
                 <path d="M8 38 C 60 24, 130 22, 200 32 S 300 44, 312 28" stroke="#F59E0B" strokeWidth="6" strokeLinecap="round" fill="none"/>
               </svg>
             </span>
             <br />you&apos;ve already won.
           </h1>
-          <p style={{ fontSize: 19, lineHeight: 1.55, color: "var(--neutral-600)", maxWidth: 560, margin: "0 0 32px" }}>
+          <p className="text-[19px] leading-[1.55] text-[var(--neutral-600)] max-w-[560px] mt-0 mb-8">
             Rakho AI watches your roster the way a senior ops lead would — quietly, every day — and tells you which students need a call this week. Built for tutoring businesses across South Asia, the Gulf, and beyond.
           </p>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <Link href="/dashboard" style={{ fontSize: 15, fontWeight: 500, padding: "14px 22px", borderRadius: 12, background: "var(--primary-500)", color: "#fff", textDecoration: "none" }}>Book a walkthrough</Link>
-            <Link href="/dashboard" style={{ fontSize: 15, fontWeight: 500, padding: "14px 22px", borderRadius: 12, background: "#fff", color: "var(--neutral-800)", border: "1px solid var(--neutral-200)", textDecoration: "none" }}>See a sample report</Link>
+          <div className="flex gap-3 items-center">
+            <Link href="/signup" className="text-[15px] font-medium px-[22px] py-3.5 rounded-xl bg-[var(--primary-500)] text-white no-underline">Book a walkthrough</Link>
+            <Link href="#features" className="text-[15px] font-medium px-[22px] py-3.5 rounded-xl bg-white text-[var(--neutral-800)] border border-[var(--neutral-200)] no-underline">See a sample report</Link>
           </div>
-          <div style={{ marginTop: 26, fontSize: 13, color: "var(--neutral-500)", display: "flex", alignItems: "center", gap: 16 }}>
-            <span><strong style={{ color: "var(--neutral-800)" }}>1,200+</strong> tutoring centers</span>
+          <div className="mt-6 text-[13px] text-[var(--neutral-500)] flex items-center gap-4">
+            <span>Built for tutoring businesses</span>
             <span>·</span>
             <span>Pakistan · India · UAE · Nigeria · Philippines</span>
           </div>
         </div>
 
         {/* Dashboard preview card */}
-        <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: 22, padding: 22, boxShadow: "0 24px 60px rgba(15,23,42,0.08), 0 4px 12px rgba(15,23,42,0.04)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 500, color: "var(--neutral-900)" }}>Watching the door</div>
-            <div style={{ fontSize: 12, color: "var(--neutral-500)" }}>This week</div>
+        <div className="bg-white border border-[var(--neutral-200)] rounded-[22px] p-[22px] shadow-[0_24px_60px_rgba(15,23,42,0.08),0_4px_12px_rgba(15,23,42,0.04)]">
+          <div className="flex justify-between items-center mb-4">
+            <div className="font-[var(--font-display)] text-[18px] font-medium text-[var(--neutral-900)]">Watching the door</div>
+            <div className="text-xs text-[var(--neutral-500)]">This week</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+          <div className="grid grid-cols-3 gap-2.5 mb-4">
             {[
-              { lbl: "Total", v: "1,248", d: "+4.2%", warn: false },
-              { lbl: "At risk", v: "24",    d: "+3",    warn: true  },
-              { lbl: "Retention", v: "93%",  d: "+2.0%", warn: false },
+              { lbl: "Total",     v: "1,248", d: "+4.2%", warn: false },
+              { lbl: "At risk",   v: "24",    d: "+3",    warn: true  },
+              { lbl: "Retention", v: "93%",   d: "+2.0%", warn: false },
             ].map(t => (
-              <div key={t.lbl} style={{ background: t.warn ? "#FEF2F2" : "var(--neutral-50)", borderRadius: 12, padding: 12 }}>
-                <div style={{ fontSize: 11, color: "var(--neutral-500)", marginBottom: 4 }}>{t.lbl}</div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.01em" }}>{t.v}</div>
-                <div style={{ fontSize: 11, color: t.warn ? "var(--error)" : "var(--success)", fontWeight: 600, marginTop: 2 }}>{t.d}</div>
+              <div key={t.lbl} className={`${t.warn ? "bg-red-50" : "bg-[var(--neutral-50)]"} rounded-xl p-3`}>
+                <div className="text-[11px] text-[var(--neutral-500)] mb-1">{t.lbl}</div>
+                <div className="font-[var(--font-display)] text-2xl font-medium text-[var(--neutral-900)] tracking-[-0.01em]">{t.v}</div>
+                <div className={`text-[11px] font-semibold mt-0.5 ${t.warn ? "text-[var(--error)]" : "text-[var(--success)]"}`}>{t.d}</div>
               </div>
             ))}
           </div>
           {[
-            { i: "SS", bg: "var(--primary-100)", fg: "var(--primary-700)", n: "Saanvi Sharma",  b: "62% attendance",  badgeBg: "#FEE2E2", badgeFg: "#B91C1C", l: "High"     },
-            { i: "IP", bg: "#FFE4E6",             fg: "#9F1239",           n: "Ibrahim Patel",  b: "Fee overdue 14d", badgeBg: "#FEE2E2", badgeFg: "#B91C1C", l: "Critical" },
-            { i: "AK", bg: "var(--accent-100)",   fg: "var(--accent-700)", n: "Ayaan Khan",     b: "Late 22 min · Sun", badgeBg: "#FEF3C7", badgeFg: "#B45309", l: "Medium" },
+            { i: "SS", bg: "var(--primary-100)", fg: "var(--primary-700)", n: "Saanvi Sharma",  b: "62% attendance",    badgeBg: "#FEE2E2", badgeFg: "#B91C1C", l: "High"     },
+            { i: "IP", bg: "#FFE4E6",             fg: "#9F1239",           n: "Ibrahim Patel",  b: "Fee overdue 14d",   badgeBg: "#FEE2E2", badgeFg: "#B91C1C", l: "Critical" },
+            { i: "AK", bg: "var(--accent-100)",   fg: "var(--accent-700)", n: "Ayaan Khan",     b: "Late 22 min · Sun", badgeBg: "#FEF3C7", badgeFg: "#B45309", l: "Medium"   },
           ].map((r, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < 2 ? "1px solid var(--neutral-100)" : "none" }}>
-              <div style={{ width: 32, height: 32, borderRadius: "var(--radius-full)", background: r.bg, color: r.fg, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 12 }}>{r.i}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--neutral-900)" }}>{r.n}</div>
-                <div style={{ fontSize: 12, color: "var(--neutral-500)" }}>{r.b}</div>
+            <div key={i} className={`flex items-center gap-3 py-2.5 ${i < 2 ? "border-b border-[var(--neutral-100)]" : ""}`}>
+              <div
+                className="w-8 h-8 rounded-[var(--radius-full)] flex items-center justify-center font-semibold text-xs flex-shrink-0"
+                style={{ background: r.bg, color: r.fg }}
+              >{r.i}</div>
+              <div className="flex-1">
+                <div className="text-[13px] font-semibold text-[var(--neutral-900)]">{r.n}</div>
+                <div className="text-xs text-[var(--neutral-500)]">{r.b}</div>
               </div>
-              <span style={{ background: r.badgeBg, color: r.badgeFg, padding: "3px 9px", borderRadius: "var(--radius-full)", fontWeight: 600, fontSize: 11 }}>{r.l}</span>
+              <span
+                className="px-[9px] py-[3px] rounded-[var(--radius-full)] font-semibold text-[11px]"
+                style={{ background: r.badgeBg, color: r.badgeFg }}
+              >{r.l}</span>
             </div>
           ))}
         </div>
@@ -104,14 +110,14 @@ function Hero() {
 }
 
 function Trust() {
-  const logos = ["Bright Future", "Pioneer Academy", "Vidya Bhavan", "Al-Falah Tutors", "Pinnacle Coaching", "Lyceum Hub"];
+  const placeholders = ["Your Academy Name", "Your Academy Name", "Your Academy Name", "Your Academy Name"];
   return (
-    <section style={{ padding: "48px 0", borderTop: "1px solid var(--neutral-100)", borderBottom: "1px solid var(--neutral-100)", background: "#fff" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
-        <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--neutral-500)", fontWeight: 600, textAlign: "center", marginBottom: 22 }}>Trusted by tutoring centers across five markets</div>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 56, flexWrap: "wrap" }}>
-          {logos.map(l => (
-            <div key={l} style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 20, color: "var(--neutral-400)", letterSpacing: "-0.01em" }}>{l}</div>
+    <section className="py-12 border-t border-b border-[var(--neutral-100)] bg-white">
+      <div className="max-w-[1200px] mx-auto px-8">
+        <div className="text-xs uppercase tracking-[0.08em] text-[var(--neutral-500)] font-semibold text-center mb-[22px]">Designed for tutoring centers across South Asia and beyond</div>
+        <div className="flex justify-center items-center gap-14 flex-wrap">
+          {placeholders.map((l, i) => (
+            <div key={i} className="font-[var(--font-display)] font-medium text-xl text-[var(--neutral-300)] tracking-[-0.01em]">{l}</div>
           ))}
         </div>
       </div>
@@ -121,29 +127,24 @@ function Trust() {
 
 function Features() {
   const feats = [
-    { Icon: Activity,           title: "Risk overview",          body: "One screen for every center. See who's safe, who's slipping, who's halfway out — sorted the way a good ops lead would sort it.", accent: false, rose: false },
+    { Icon: Activity,           title: "Risk overview",          body: "One screen for every center. See who’s safe, who’s slipping, who’s halfway out — sorted the way a good ops lead would sort it.", accent: false, rose: false },
     { Icon: MessageCircleHeart, title: "AI-drafted nudges",      body: "Polite WhatsApp drafts, in the right language, ready for a single click. You stay in control — Rakho never sends without you.", accent: true, rose: false },
-    { Icon: Layers,             title: "Multi-center analytics", body: "Compare branches, batches, and tutors. Find the cohorts where students stay — and the ones where they don't.", accent: false, rose: true },
+    { Icon: Layers,             title: "Multi-center analytics", body: "Compare branches, batches, and tutors. Find the cohorts where students stay — and the ones where they don’t.", accent: false, rose: true },
   ];
   return (
-    <section id="features" style={{ padding: "88px 0", background: "#fff" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
-        <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--primary-600)", marginBottom: 14 }}>Features</div>
-        <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 44, letterSpacing: "-0.02em", lineHeight: 1.1, color: "var(--neutral-900)", margin: "0 0 16px", maxWidth: 720 }}>A second pair of eyes on every student.</h2>
-        <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--neutral-600)", maxWidth: 640, margin: "0 0 48px" }}>Rakho reads attendance, fees, and engagement signals across your branches and quietly flags who&apos;s drifting — before they&apos;re gone.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+    <section id="features" className="bg-white" style={{ padding: "88px 0" }}>
+      <div className="max-w-[1200px] mx-auto px-8">
+        <div className="text-xs font-semibold tracking-[0.08em] uppercase text-[var(--primary-600)] mb-3.5">Features</div>
+        <h2 className="font-[var(--font-display)] font-medium text-[44px] tracking-[-0.02em] leading-[1.1] text-[var(--neutral-900)] mt-0 mb-4 max-w-[720px]">A second pair of eyes on every student.</h2>
+        <p className="text-[18px] leading-[1.6] text-[var(--neutral-600)] max-w-[640px] mt-0 mb-12">Rakho reads attendance, fees, and engagement signals across your branches and quietly flags who&apos;s drifting — before they’re gone.</p>
+        <div className="grid grid-cols-3 gap-5">
           {feats.map(f => (
-            <div key={f.title} style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: 18, padding: 28 }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: 12, marginBottom: 18,
-                background: f.rose ? "#FEE2E2" : f.accent ? "var(--accent-100)" : "var(--primary-100)",
-                color: f.rose ? "#B91C1C" : f.accent ? "var(--accent-700)" : "var(--primary-700)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
+            <div key={f.title} className="bg-white border border-[var(--neutral-200)] rounded-[18px] p-7">
+              <div className={`w-12 h-12 rounded-xl mb-[18px] flex items-center justify-center ${f.rose ? "bg-red-100 text-red-700" : f.accent ? "bg-[var(--accent-100)] text-[var(--accent-700)]" : "bg-[var(--primary-100)] text-[var(--primary-700)]"}`}>
                 <f.Icon size={22} />
               </div>
-              <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 22, letterSpacing: "-0.01em", color: "var(--neutral-900)", margin: "0 0 8px" }}>{f.title}</h3>
-              <p style={{ fontSize: 15, lineHeight: 1.55, color: "var(--neutral-600)", margin: 0 }}>{f.body}</p>
+              <h3 className="font-[var(--font-display)] font-medium text-[22px] tracking-[-0.01em] text-[var(--neutral-900)] mt-0 mb-2">{f.title}</h3>
+              <p className="text-[15px] leading-[1.55] text-[var(--neutral-600)] m-0">{f.body}</p>
             </div>
           ))}
         </div>
@@ -154,21 +155,21 @@ function Features() {
 
 function HowItWorks() {
   const steps = [
-    { n: "01", title: "Import your roster",     body: "Drop in a CSV from your existing system, or connect WhatsApp Business and we'll pull from there. Most centers do this once." },
+    { n: "01", title: "Import your roster",     body: "Drop in a CSV from your existing system, or connect WhatsApp Business and we’ll pull from there. Most centers do this once." },
     { n: "02", title: "We watch quietly",        body: "Attendance, fees, engagement signals — Rakho reads all of it daily and assigns each student a calm, explainable risk score." },
     { n: "03", title: "You act on what matters", body: "Each Monday, you get a short list — names, reasons, and a suggested next step for each. No dashboards to dig through." },
   ];
   return (
-    <section id="howitworks" style={{ padding: "88px 0", background: "var(--neutral-50)" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
-        <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--primary-600)", marginBottom: 14 }}>How it works</div>
-        <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 44, letterSpacing: "-0.02em", lineHeight: 1.1, color: "var(--neutral-900)", margin: "0 0 48px", maxWidth: 720 }}>Set up in a morning. Quietly useful by afternoon.</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+    <section id="howitworks" className="bg-[var(--neutral-50)]" style={{ padding: "88px 0" }}>
+      <div className="max-w-[1200px] mx-auto px-8">
+        <div className="text-xs font-semibold tracking-[0.08em] uppercase text-[var(--primary-600)] mb-3.5">How it works</div>
+        <h2 className="font-[var(--font-display)] font-medium text-[44px] tracking-[-0.02em] leading-[1.1] text-[var(--neutral-900)] mt-0 mb-12 max-w-[720px]">Set up in a morning. Quietly useful by afternoon.</h2>
+        <div className="grid grid-cols-3 gap-6">
           {steps.map(s => (
-            <div key={s.n} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 38, fontWeight: 500, color: "var(--accent-500)", lineHeight: 1, letterSpacing: "-0.02em" }}>{s.n}</div>
-              <h4 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 500, letterSpacing: "-0.01em", color: "var(--neutral-900)" }}>{s.title}</h4>
-              <p style={{ fontSize: 15, lineHeight: 1.6, color: "var(--neutral-600)", margin: 0 }}>{s.body}</p>
+            <div key={s.n} className="flex flex-col gap-3">
+              <div className="font-[var(--font-display)] text-[38px] font-medium text-[var(--accent-500)] leading-none tracking-[-0.02em]">{s.n}</div>
+              <h4 className="font-[var(--font-display)] text-[22px] font-medium tracking-[-0.01em] text-[var(--neutral-900)]">{s.title}</h4>
+              <p className="text-[15px] leading-[1.6] text-[var(--neutral-600)] m-0">{s.body}</p>
             </div>
           ))}
         </div>
@@ -179,25 +180,29 @@ function HowItWorks() {
 
 function Testimonial() {
   return (
-    <section id="stories" style={{ padding: "88px 0", background: "#fff" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
-        <div style={{ background: "var(--primary-500)", color: "#fff", borderRadius: 24, padding: 64, display: "grid", gridTemplateColumns: "1fr 240px", gap: 48, position: "relative", overflow: "hidden", alignItems: "center" }}>
-          <svg style={{ position: "absolute", left: -60, bottom: -60, width: 320, opacity: 0.14, color: "#fff", pointerEvents: "none" }} viewBox="0 0 240 200" fill="none">
+    <section id="stories" className="bg-white" style={{ padding: "88px 0" }}>
+      <div className="max-w-[1200px] mx-auto px-8">
+        {/* TODO: replace with a real customer quote */}
+        <div
+          className="bg-[var(--primary-500)] text-white rounded-[24px] p-16 relative overflow-hidden items-center"
+          style={{ display: "grid", gridTemplateColumns: "1fr 240px", gap: 48 }}
+        >
+          <svg className="absolute left-[-60px] bottom-[-60px] w-[320px] opacity-[0.14] text-white pointer-events-none" viewBox="0 0 240 200" fill="none">
             <g stroke="currentColor" strokeWidth="1.4" fill="none">
               <path d="M120 30 C 70 50 50 100 70 150 C 90 185 150 180 170 145 C 190 110 180 60 130 32"/>
               <path d="M120 55 C 90 70 80 105 95 135 C 110 160 145 158 158 132 C 170 105 160 70 128 56"/>
             </g>
           </svg>
-          <div style={{ position: "relative" }}>
-            <blockquote style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 30, lineHeight: 1.35, letterSpacing: "-0.01em", margin: 0 }}>
+          <div className="relative">
+            <blockquote className="font-[var(--font-display)] font-normal text-[30px] leading-[1.35] tracking-[-0.01em] m-0">
               &ldquo;We used to lose six students a month and only notice at fee time. Now we know on Monday, and most of them stay.&rdquo;
             </blockquote>
-            <div style={{ marginTop: 28 }}>
-              <strong style={{ display: "block", fontWeight: 600, fontSize: 15 }}>Ayesha Yousuf</strong>
-              <span style={{ color: "rgba(255,255,255,0.75)", fontSize: 14 }}>Owner · Bright Future Academy · Karachi (3 branches, 312 students)</span>
+            <div className="mt-7">
+              <strong className="block font-semibold text-[15px]">Your Name Here</strong>
+              <span className="text-white/75 text-[14px]">Academy &middot; City</span>
             </div>
           </div>
-          <div style={{ width: 220, height: 280, borderRadius: 18, background: "var(--accent-500)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-display)", fontSize: 88, color: "#fff", fontWeight: 500, flexShrink: 0 }}>A</div>
+          <div className="w-[220px] h-[280px] rounded-[18px] bg-[var(--accent-500)] flex items-center justify-center font-[var(--font-display)] text-[88px] text-white font-medium flex-shrink-0">A</div>
         </div>
       </div>
     </section>
@@ -213,35 +218,35 @@ function Pricing() {
     "WhatsApp + email support in 4 languages",
   ];
   return (
-    <section id="pricing" style={{ padding: "88px 0", background: "var(--neutral-50)" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--primary-600)", marginBottom: 14 }}>Pricing</div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 44, letterSpacing: "-0.02em", lineHeight: 1.1, color: "var(--neutral-900)", margin: "0 auto 16px" }}>One price. Every branch. No per-student fees.</h2>
-          <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--neutral-600)", maxWidth: 640, margin: "0 auto" }}>We don&apos;t punish you for growing. Add as many students as you&apos;d like — your bill stays the same.</p>
+    <section id="pricing" className="bg-[var(--neutral-50)]" style={{ padding: "88px 0" }}>
+      <div className="max-w-[1200px] mx-auto px-8">
+        <div className="text-center mb-12">
+          <div className="text-xs font-semibold tracking-[0.08em] uppercase text-[var(--primary-600)] mb-3.5">Pricing</div>
+          <h2 className="font-[var(--font-display)] font-medium text-[44px] tracking-[-0.02em] leading-[1.1] text-[var(--neutral-900)] mt-0 mb-4 mx-auto">One price. Every branch. No per-student fees.</h2>
+          <p className="text-[18px] leading-[1.6] text-[var(--neutral-600)] max-w-[640px] mx-auto m-0">We don&apos;t punish you for growing. Add as many students as you&apos;d like — your bill stays the same.</p>
         </div>
-        <div style={{ maxWidth: 760, margin: "0 auto", background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: 22, padding: 40, boxShadow: "var(--shadow-sm)", position: "relative" }}>
-          <span style={{ position: "absolute", top: -14, right: 32, background: "var(--accent-500)", color: "#fff", padding: "5px 14px", borderRadius: "var(--radius-full)", fontSize: 12, fontWeight: 600, letterSpacing: "0.04em" }}>Most centers</span>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "center" }}>
+        <div className="max-w-[760px] mx-auto bg-white border border-[var(--neutral-200)] rounded-[22px] p-10 shadow-[var(--shadow-sm)] relative">
+          <span className="absolute top-[-14px] right-8 bg-[var(--accent-500)] text-white px-3.5 py-[5px] rounded-[var(--radius-full)] text-xs font-semibold tracking-[0.04em]">Most centers</span>
+          <div className="grid gap-8 items-center" style={{ gridTemplateColumns: "1fr 1fr" }}>
             <div>
-              <h3 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 500, letterSpacing: "-0.02em", margin: "0 0 6px", color: "var(--neutral-900)" }}>Rakho · Pro</h3>
-              <p style={{ color: "var(--neutral-500)", margin: "4px 0 0", fontSize: 15 }}>For tutoring businesses with 50+ students.</p>
-              <ul style={{ listStyle: "none", padding: 0, margin: "18px 0 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <h3 className="font-[var(--font-display)] text-[32px] font-medium tracking-[-0.02em] mt-0 mb-1.5 text-[var(--neutral-900)]">Rakho &middot; Pro</h3>
+              <p className="text-[var(--neutral-500)] mt-1 mb-0 text-[15px]">For tutoring businesses with 50+ students.</p>
+              <ul className="list-none p-0 mt-[18px] mb-6 flex flex-col gap-2.5">
                 {features.map(f => (
-                  <li key={f} style={{ display: "flex", gap: 10, fontSize: 15, color: "var(--neutral-700)", alignItems: "center" }}>
-                    <Check size={18} color="var(--primary-500)" style={{ flexShrink: 0 }} />
+                  <li key={f} className="flex gap-2.5 text-[15px] text-[var(--neutral-700)] items-center">
+                    <Check size={18} color="var(--primary-500)" className="flex-shrink-0" />
                     {f}
                   </li>
                 ))}
               </ul>
             </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 56, fontWeight: 500, letterSpacing: "-0.03em", color: "var(--neutral-900)", display: "flex", alignItems: "baseline", gap: 6, justifyContent: "center" }}>
-                ₹14,999<small style={{ fontFamily: "var(--font-body)", fontSize: 15, fontWeight: 500, color: "var(--neutral-500)" }}>/month</small>
+            <div className="text-center">
+              <div className="font-[var(--font-display)] text-[56px] font-medium tracking-[-0.03em] text-[var(--neutral-900)] flex items-baseline gap-1.5 justify-center">
+                &#8377;14,999<small className="font-[var(--font-body)] text-[15px] font-medium text-[var(--neutral-500)]">/month</small>
               </div>
-              <div style={{ fontSize: 13, color: "var(--neutral-500)", margin: "4px 0 22px" }}>or ₨ 39,000 · AED 590 · ₦ 99,000 · ₱ 9,800</div>
-              <Link href="/dashboard" style={{ display: "block", textAlign: "center", fontSize: 15, fontWeight: 500, padding: "14px 22px", borderRadius: 12, background: "var(--primary-500)", color: "#fff", textDecoration: "none" }}>Book a walkthrough</Link>
-              <div style={{ fontSize: 12, color: "var(--neutral-500)", marginTop: 12 }}>30-day pilot. No card.</div>
+              <div className="text-[13px] text-[var(--neutral-500)] mt-1 mb-[22px]">or &#8360; 39,000 &middot; AED 590 &middot; &#8358; 99,000 &middot; &#8369; 9,800</div>
+              <Link href="/signup" className="block text-center text-[15px] font-medium px-[22px] py-3.5 rounded-xl bg-[var(--primary-500)] text-white no-underline">Book a walkthrough</Link>
+              <div className="text-xs text-[var(--neutral-500)] mt-3">30-day pilot. No card.</div>
             </div>
           </div>
         </div>
@@ -257,25 +262,29 @@ function Footer() {
     { title: "Resources", links: ["Retention guide", "Help center", "WhatsApp templates", "Status"] },
   ];
   return (
-    <footer style={{ background: "var(--neutral-900)", color: "var(--neutral-300)", padding: "56px 0 32px" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 48, marginBottom: 40 }}>
+    <footer className="bg-[var(--neutral-900)] text-[var(--neutral-300)]" style={{ padding: "56px 0 32px" }}>
+      <div className="max-w-[1200px] mx-auto px-8">
+        <div className="grid gap-12 mb-10" style={{ gridTemplateColumns: "1.4fr 1fr 1fr 1fr" }}>
           <div>
-            <Image src="/assets/logo.png" alt="Rakho AI" width={126} height={34} style={{ marginBottom: 16 }} />
-            <p style={{ fontSize: 14, lineHeight: 1.6, color: "var(--neutral-400)", maxWidth: 320, margin: 0 }}>Rakho AI helps tutoring businesses keep the students they&apos;ve already won. Built for South Asia, the Gulf, and beyond.</p>
+            <Image src="/assets/logo.png" alt="Rakho AI" width={126} height={34} className="mb-4" />
+            <p className="text-[14px] leading-[1.6] text-[var(--neutral-400)] max-w-[320px] m-0">Rakho AI helps tutoring businesses keep the students they&apos;ve already won. Built for South Asia, the Gulf, and beyond.</p>
           </div>
           {sections.map(s => (
             <div key={s.title}>
-              <h5 style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, color: "#fff", margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.title}</h5>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
-                {s.links.map(l => <li key={l}><a href="#" style={{ color: "var(--neutral-300)", textDecoration: "none" }}>{l}</a></li>)}
+              <h5 className="font-[var(--font-body)] text-[13px] font-semibold text-white mt-0 mb-3.5 uppercase tracking-[0.06em]">{s.title}</h5>
+              <ul className="list-none p-0 m-0 flex flex-col gap-2 text-[14px]">
+                {s.links.map(l => (
+                  <li key={l}>
+                    <a href="#" aria-label={`${l} (coming soon)`} className="text-[var(--neutral-300)] no-underline">{l}</a>
+                  </li>
+                ))}
               </ul>
             </div>
           ))}
         </div>
-        <div style={{ paddingTop: 24, borderTop: "1px solid var(--neutral-700)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, color: "var(--neutral-500)" }}>
-          <span>© 2026 Rakho AI · Karachi · Bengaluru · Dubai</span>
-          <div style={{ display: "flex", gap: 14, fontFamily: "var(--font-mono)" }}>
+        <div className="pt-6 border-t border-[var(--neutral-700)] flex justify-between items-center text-[13px] text-[var(--neutral-500)]">
+          <span>&#169; 2026 Rakho AI &middot; Karachi &middot; Bengaluru &middot; Dubai</span>
+          <div className="flex gap-3.5 font-[var(--font-mono)]">
             {["₹", "₨", "AED", "₦", "₱"].map(c => <span key={c}>{c}</span>)}
           </div>
         </div>

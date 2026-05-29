@@ -1,4 +1,4 @@
-import type { RiskLevel } from "@/lib/data";
+import type { RiskLevel } from "@/lib/db/types";
 
 const map: Record<RiskLevel, { bg: string; fg: string; dot: string; label: string }> = {
   critical: { bg: "#FEE2E2", fg: "#B91C1C", dot: "#B91C1C", label: "Critical" },

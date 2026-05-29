@@ -66,8 +66,7 @@ async function updateImportSetStatus(importSetId: string | null | undefined, ent
 }
 
 async function loadStudents(academyId: string): Promise<ExistingStudentForMatch[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (db as any)
+  const { data, error } = await db
     .from("Student")
     .select("id, externalId, name, contact")
     .eq("academyId", academyId) as { data: ExistingStudentForMatch[] | null; error: { message: string } | null };
@@ -76,8 +75,7 @@ async function loadStudents(academyId: string): Promise<ExistingStudentForMatch[
 }
 
 async function syncStructuredStudentSummaries(academyId: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: students, error: studentsError } = await (db as any)
+  const { data: students, error: studentsError } = await db
     .from("Student")
     .select("id, name, externalId, contact, subject, tutor, feesAmount, rawDataJson, attendanceRate, lastSessionDate, paymentStatus, lastPaymentDate, totalSessions")
     .eq("academyId", academyId) as { data: StructuredStudentRow[] | null; error: { message: string } | null };
@@ -86,8 +84,15 @@ async function syncStructuredStudentSummaries(academyId: string) {
   // Stored summary values already on the Student row (e.g. from an aggregate
   // upload). Preserved when an entity has no event rows to recompute from, so a
   // payments import does not wipe aggregate attendance and vice-versa.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const storedById = new Map<string, any>((students as any[] ?? []).map((s) => [s.id, s]));
+  // The DB select returns extra summary fields not declared on StructuredStudentRow.
+  type StudentWithSummary = StructuredStudentRow & {
+    attendanceRate?: number | null;
+    lastSessionDate?: string | null;
+    paymentStatus?: string | null;
+    lastPaymentDate?: string | null;
+    totalSessions?: number | null;
+  };
+  const storedById = new Map<string, StudentWithSummary>((students as StudentWithSummary[] ?? []).map((s) => [s.id, s]));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: sessions, error: sessionsError } = await (db as any)
@@ -134,8 +139,7 @@ async function syncStructuredStudentSummaries(academyId: string) {
     const paymentStatus = hasPayments ? student.paymentStatus : (stored?.paymentStatus ?? null);
     const lastPaymentDate = hasPayments ? student.lastPaymentDate : toDate(stored?.lastPaymentDate);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (db as any)
+    const { error } = await db
       .from("Student")
       .update({
         lastSessionDate: lastSessionDate?.toISOString() ?? null,
@@ -154,22 +158,18 @@ async function clearStudentDataForAcademy(academyId: string) {
   const students = await loadStudents(academyId);
   const studentIds = students.map((student) => student.id);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (db as any).from("EmailAlert").delete().eq("academyId", academyId);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (db as any).from("Action").delete().eq("academyId", academyId);
+  await db.from("EmailAlert").delete().eq("academyId", academyId);
+  await db.from("Action").delete().eq("academyId", academyId);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (db as any).from("Payment").delete().eq("academyId", academyId);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (db as any).from("Session").delete().eq("academyId", academyId);
 
   if (studentIds.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (db as any).from("RiskAssessment").delete().in("studentId", studentIds);
+    await db.from("RiskAssessment").delete().in("studentId", studentIds);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (db as any).from("Student").delete().eq("academyId", academyId);
+  await db.from("Student").delete().eq("academyId", academyId);
 }
 
 // Sibling-merge guard: when a roster has no real student id, normalize.ts

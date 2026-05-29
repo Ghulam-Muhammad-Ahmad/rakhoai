@@ -20,9 +20,8 @@ function latestDateFromUploads(rows: Array<{ processedAt: string | null; uploade
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 }
 
-export async function runStructuredRiskScoring(academyId: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: students, error: studentsError } = await (db as any)
+export async function runStructuredRiskScoring(academyId: string, uploadId: string | null = null) {
+  const { data: students, error: studentsError } = await db
     .from("Student")
     .select("id, name, externalId, contact, subject, tutor, feesAmount, rawDataJson, attendanceRate, lastSessionDate, paymentStatus, lastPaymentDate, totalSessions")
     .eq("academyId", academyId) as { data: StructuredStudentRow[] | null; error: { message: string } | null };
@@ -32,8 +31,15 @@ export async function runStructuredRiskScoring(academyId: string) {
   // Stored summary fields already on the Student row (e.g. from an aggregate
   // sessions/payments upload). Used as a fallback when there are no per-event
   // Session/Payment rows to recompute from — otherwise aggregate data is ignored.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const storedById = new Map<string, any>((students as any[]).map((s) => [s.id, s]));
+  // The DB select returns extra summary fields not declared on StructuredStudentRow.
+  type StoredStudent = StructuredStudentRow & {
+    attendanceRate?: number | null;
+    lastSessionDate?: string | null;
+    paymentStatus?: string | null;
+    lastPaymentDate?: string | null;
+    totalSessions?: number | null;
+  };
+  const storedById = new Map<string, StoredStudent>((students as StoredStudent[]).map((s) => [s.id, s]));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: sessions, error: sessionsError } = await (db as any)
@@ -55,8 +61,7 @@ export async function runStructuredRiskScoring(academyId: string) {
   const sessionRows = sessions ?? [];
   const paymentRows = payments ?? [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: uploads } = await (db as any)
+  const { data: uploads } = await db
     .from("Upload")
     .select("entityType, processedAt, uploadedAt")
     .eq("academyId", academyId)
@@ -112,8 +117,7 @@ export async function runStructuredRiskScoring(academyId: string) {
     const riskScore = Math.min(100, rule.score);
     const riskBand = getRiskBand(riskScore);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: updateError } = await (db as any)
+    const { error: updateError } = await db
       .from("Student")
       .update({
         lastSessionDate: merged.lastSessionDate?.toISOString() ?? null,
@@ -126,11 +130,10 @@ export async function runStructuredRiskScoring(academyId: string) {
       .eq("id", studentId);
     if (updateError) throw new Error(`Failed to update structured student signals: ${updateError.message}`);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: riskError } = await (db as any).from("RiskAssessment").insert({
+    const { error: riskError } = await db.from("RiskAssessment").insert({
       id: crypto.randomUUID(),
       studentId,
-      uploadId: null,
+      uploadId,
       riskScore,
       riskBand,
       reasonsJson: [

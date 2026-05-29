@@ -138,6 +138,9 @@ export async function getStudentRiskList(
   filters: StudentRiskFilters = {},
   currencySymbol = "$"
 ): Promise<StudentRiskListItem[]> {
+  // Only the latest risk assessment per student is needed for the list (the
+  // rest is history); ordering + limiting the embedded resource at the DB avoids
+  // pulling every assessment row into memory.
   const { data, error } = await db
     .from("Student")
     .select(`
@@ -145,7 +148,10 @@ export async function getStudentRiskList(
       riskAssessments:RiskAssessment(*),
       actions:Action(id, status, createdAt, updatedAt)
     `)
-    .eq("academyId", academyId);
+    .eq("academyId", academyId)
+    .order("computedAt", { referencedTable: "RiskAssessment", ascending: false })
+    .limit(1, { referencedTable: "RiskAssessment" })
+    .order("updatedAt", { ascending: false });
 
   if (error) throw new Error(`Failed to fetch students: ${error.message}`);
 

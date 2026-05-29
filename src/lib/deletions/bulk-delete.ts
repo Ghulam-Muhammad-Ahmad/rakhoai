@@ -57,8 +57,7 @@ export async function deleteStudentsForAcademy(academyId: string, ids: string[])
   await deleteRowsByStudentIds("Payment", academyId, ownedIds);
   await deleteRowsByStudentIds("Session", academyId, ownedIds);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const riskResult = await (db as any)
+  const riskResult = await db
     .from("RiskAssessment")
     .delete()
     .in("studentId", ownedIds) as { error: { message: string } | null };

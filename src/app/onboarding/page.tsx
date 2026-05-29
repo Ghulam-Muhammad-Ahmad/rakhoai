@@ -19,6 +19,7 @@ export default function OnboardingPage() {
   const [currency, setCurrency] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
 
   function handleCountryChange(val: string) {
     const selected = countryOptions.find((item) => item.name === val);
@@ -29,6 +30,11 @@ export default function OnboardingPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!/^[A-Z]{2,4}$/.test(currency)) {
+      setCurrencyError("Enter a valid currency code (e.g. USD, PKR, AED)");
+      return;
+    }
+    setCurrencyError(null);
     setLoading(true);
     try {
       const res = await fetch("/api/academy", {
@@ -113,12 +119,15 @@ export default function OnboardingPage() {
             <input
               type="text"
               value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
               placeholder="Auto-filled from country"
               className="flex-1 border-none bg-transparent text-sm text-[var(--neutral-800)] outline-none placeholder:text-[var(--neutral-400)]"
             />
           </div>
           <p className="text-xs text-[var(--neutral-400)]">Auto-filled based on country. You can edit it.</p>
+          {currencyError && (
+            <p className="text-xs text-red-600">{currencyError}</p>
+          )}
         </div>
 
         {error && (

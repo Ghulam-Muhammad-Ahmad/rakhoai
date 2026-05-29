@@ -1,4 +1,4 @@
-import type { AvatarTone } from "@/lib/data";
+import type { AvatarTone } from "@/lib/db/types";
 
 const tones: Record<AvatarTone, { bg: string; fg: string }> = {
   primary: { bg: "var(--primary-100)", fg: "var(--primary-700)" },

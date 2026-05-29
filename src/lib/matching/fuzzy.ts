@@ -42,8 +42,12 @@ function entriesFor(allowedFields?: readonly string[]): FuseEntry[] {
     .flatMap(({ field, terms }) => terms.map((term) => ({ term, field })));
 }
 
+// Map Fuse score (0 = perfect, 0.4 = threshold edge) onto confidence so that a
+// match which clears the Fuse threshold (<= 0.4) also clears the >= 0.75 bar in
+// index.ts. The old curve floored at 0.6, so legitimate mid-range fuzzy matches
+// were computed and then silently rejected.
 function scoreToConfidence(fuseScore: number): number {
-  return Math.max(0.6, 0.95 - fuseScore * 0.875);
+  return Math.max(0.75, 0.95 - fuseScore * 0.5);
 }
 
 export function fuzzyMatch(
@@ -61,7 +65,6 @@ export function fuzzyMatch(
 
   const best = results[0];
   const score = best.score ?? 1;
-  if (score > 0.4) return null;
 
   return {
     field: best.item.field,

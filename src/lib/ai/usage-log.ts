@@ -10,7 +10,7 @@ export type AiUsageStatus = "success" | "error" | "cache_hit";
 export type AiUsageInput = {
   academyId?: string | null;
   uploadId?: string | null;
-  feature: "column_mapping" | "risk_scoring";
+  feature: "column_mapping" | "risk_scoring" | "normalization";
   model: string;
   payloadForHash: unknown;
   inputTokens?: number | null;
@@ -47,10 +47,7 @@ export async function logAiUsage(input: AiUsageInput): Promise<void> {
     metadataJson: (input.metadata ?? {}) as Json,
   };
 
-  // NOTE: `as any` works around Supabase TS inference issue with PascalCase table names.
-  // Root cause: generated types assume snake_case; fix when regenerating types from live DB.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: insertError } = await db.from("AiUsageLog").insert(row as any);
+  const { error: insertError } = await db.from("AiUsageLog").insert(row);
   if (insertError) {
     console.error("[logAiUsage] insert failed:", insertError.message, insertError.code);
   }

@@ -44,13 +44,28 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Upload must be mapped before processing" }, { status: 400 });
   }
 
-  // Set PROCESSING immediately so polling UI sees it right away
-  await db.from("Upload").update({ status: "PROCESSING" }).eq("id", id);
+  // Atomically flip MAPPED -> PROCESSING. The WHERE on status closes the TOCTOU
+  // window: only one concurrent request wins; the rest get no row back.
+  const { data: claimed } = await db
+    .from("Upload")
+    .update({ status: "PROCESSING" })
+    .eq("id", id)
+    .eq("status", "MAPPED")
+    .select("id")
+    .maybeSingle();
+  if (!claimed) {
+    return NextResponse.json({ status: "PROCESSING" }, { status: 202 });
+  }
 
   // Score in background — returns 202 immediately
   after(async () => {
     try {
-      await processStructuredUpload(id, academyId, mode);
+      // Cap the background job so a hung dependency can't pin the upload in
+      // PROCESSING forever — surface as FAILED after 5 minutes.
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Scoring timeout")), 300_000)
+      );
+      await Promise.race([processStructuredUpload(id, academyId, mode), timeout]);
     } catch (err) {
       console.error("Background scoring failed for upload", id, err);
       await db.from("Upload").update({ status: "FAILED" }).eq("id", id);

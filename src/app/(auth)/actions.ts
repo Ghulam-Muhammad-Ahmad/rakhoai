@@ -1,9 +1,21 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthUserWithAcademy } from '@/lib/db/auth-user'
 import { headers } from 'next/headers'
+
+const signUpSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120, 'Name is too long'),
+  email: z.string().trim().email('Enter a valid email').max(254),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(200),
+})
+
+const signInSchema = z.object({
+  email: z.string().trim().email('Enter a valid email').max(254),
+  password: z.string().min(1, 'Password is required').max(200),
+})
 
 async function getRedirectForUser(authUserId: string) {
   const dbUser = await getAuthUserWithAcademy(authUserId)
@@ -14,9 +26,16 @@ export async function signUp(formData: FormData) {
   const supabase = await createClient()
   const origin = (await headers()).get('origin')
 
-  const name = formData.get('name') as string
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  const parsed = signUpSchema.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+  })
+  if (!parsed.success) {
+    const msg = parsed.error.issues[0]?.message ?? 'Invalid input'
+    redirect(`/signup?error=${encodeURIComponent(msg)}`)
+  }
+  const { name, email, password } = parsed.data
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -44,8 +63,15 @@ export async function signUp(formData: FormData) {
 export async function signIn(formData: FormData) {
   const supabase = await createClient()
 
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  const parsed = signInSchema.safeParse({
+    email: formData.get('email'),
+    password: formData.get('password'),
+  })
+  if (!parsed.success) {
+    const msg = parsed.error.issues[0]?.message ?? 'Invalid input'
+    redirect(`/login?error=${encodeURIComponent(msg)}`)
+  }
+  const { email, password } = parsed.data
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 

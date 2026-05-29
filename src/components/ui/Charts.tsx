@@ -69,7 +69,7 @@ export function RiskDonut({ data, size = 120, thickness = 14 }: {
               data={data} dataKey="value" nameKey="label" cx="50%" cy="50%"
               innerRadius={innerR} outerRadius={outerR} paddingAngle={1.5}
               startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}
-              activeIndex={active ?? undefined} activeShape={renderActive}
+              {...{ activeIndex: active ?? undefined } as object} activeShape={renderActive}
               onMouseEnter={(_, i) => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
               onClick={(_, i) => toggle(i)}

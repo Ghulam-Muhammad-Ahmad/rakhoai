@@ -26,6 +26,9 @@ export async function getDashboardSummary(
     riskAssessments: { riskBand: string; computedAt: string }[];
   };
 
+  // Pull only the latest assessment per student (ordered + limited at the DB)
+  // instead of every historical RiskAssessment row, which previously loaded
+  // thousands of rows just to pick the newest in JS.
   const { data: rawStudents, error } = await db
     .from("Student")
     .select(`
@@ -33,7 +36,9 @@ export async function getDashboardSummary(
       feesAmount,
       riskAssessments:RiskAssessment(riskBand, computedAt)
     `)
-    .eq("academyId", academyId);
+    .eq("academyId", academyId)
+    .order("computedAt", { referencedTable: "RiskAssessment", ascending: false })
+    .limit(1, { referencedTable: "RiskAssessment" });
 
   if (error) throw new Error(`Failed to fetch students: ${error.message}`);
 

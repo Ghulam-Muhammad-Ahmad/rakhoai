@@ -9,7 +9,7 @@ import type { EntityType } from "@/lib/imports/types";
 import crypto from "node:crypto";
 
 const ALLOWED_TYPES = ["csv", "xlsx", "xls"];
-const MAX_BYTES = 4 * 1024 * 1024;
+const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_MB = MAX_BYTES / 1024 / 1024;
 const ENTITY_TYPES: EntityType[] = ["students", "teachers", "sessions", "payments"];
 
@@ -149,7 +149,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create upload record" }, { status: 500 });
   }
 
-  const storagePath = `${academyId}/${uploadId}/${file.name}`;
+  // Sanitize the user-supplied filename before it touches the storage path —
+  // strips path separators / null bytes so a crafted name can't traverse.
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "upload";
+  const storagePath = `${academyId}/${uploadId}/${safeName}`;
   const adminClient = getAdminStorageClient();
   const { error: storageError } = await adminClient.storage
     .from("uploads")
