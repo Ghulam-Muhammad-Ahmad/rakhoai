@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { updateActionStatus } from "@/lib/actions/actions";
@@ -6,6 +7,14 @@ import { isActionStatus } from "@/lib/actions/action-core";
 import { deleteActionsForAcademy } from "@/lib/deletions/bulk-delete";
 
 type Params = { params: Promise<{ id: string }> };
+
+// Refresh every server-rendered view that reflects action state.
+function revalidateActionPaths(studentId?: string | null) {
+  if (studentId) revalidatePath(`/students/${studentId}`);
+  revalidatePath("/students");
+  revalidatePath("/dashboard");
+  revalidatePath("/interventions");
+}
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -34,8 +43,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       actionId: id,
       status: body.status,
       notes: typeof body.notes === "string" ? body.notes : null,
+      type: typeof body.type === "string" ? body.type : null,
+      content: typeof body.content === "string" ? body.content : null,
     });
 
+    revalidateActionPaths(action.studentId);
     return NextResponse.json({ action });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update action";
@@ -60,8 +72,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
 
   try {
+    const { db } = await import("@/lib/db/client");
+    const { data: existing } = await db
+      .from("Action").select("studentId").eq("id", id).eq("academyId", dbUser.academy.id).maybeSingle();
     const result = await deleteActionsForAcademy(dbUser.academy.id, [id]);
     if (result.deleted === 0) return NextResponse.json({ error: "Action not found" }, { status: 404 });
+    revalidateActionPaths(existing?.studentId);
     return NextResponse.json({ result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to delete action";

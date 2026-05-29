@@ -11,7 +11,7 @@ import {
 async function getRetentionAssessments(academyId: string): Promise<RetentionAssessmentRow[]> {
   const { data, error } = await db
     .from("Student")
-    .select("riskAssessments:RiskAssessment(riskBand, computedAt)")
+    .select("riskAssessments:RiskAssessment(studentId, riskBand, computedAt)")
     .eq("academyId", academyId);
 
   if (error) throw new Error(`Failed to fetch retention data: ${error.message}`);
@@ -34,6 +34,7 @@ export async function getDashboardCharts(academyId: string) {
     attendanceRate: student.attendanceRate,
     recommendedAction: student.recommendedAction,
     studentName: student.name,
+    riskLevel: student.riskLevel,
   }));
 
   return {

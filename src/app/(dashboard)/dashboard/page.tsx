@@ -4,13 +4,14 @@ import { redirect } from "next/navigation";
 import StatCard from "@/components/ui/StatCard";
 import Avatar from "@/components/ui/Avatar";
 import RiskBadge from "@/components/ui/RiskBadge";
-import { AreaChart, BarChart, Donut } from "@/components/ui/Charts";
+import { AreaChart, BarChart, RiskDonut } from "@/components/ui/Charts";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
 import { getDashboardCharts } from "@/lib/dashboard/charts";
 import { getStudentRiskList } from "@/lib/students/risk";
 import { getCurrencySymbol } from "@/lib/currency";
+import Image from "next/image";
 import { RiskScoringButton } from "@/components/dashboard/RiskScoringButton";
 
 export default async function DashboardPage() {
@@ -43,6 +44,10 @@ export default async function DashboardPage() {
 
   const summary = await getDashboardSummary(dbUser.academy.id);
   const charts = await getDashboardCharts(dbUser.academy.id);
+  const allStudents = await getStudentRiskList(dbUser.academy.id, {
+    sort: "riskScore",
+    direction: "desc",
+  }, currencySymbol);
   const atRisk = await getStudentRiskList(dbUser.academy.id, {
     band: "AT_RISK",
     sort: "riskScore",
@@ -72,19 +77,55 @@ export default async function DashboardPage() {
   const hasSessions = lastByEntity.has("sessions");
   const hasPayments = lastByEntity.has("payments");
   const hasStructuredRisk = hasSessions && hasPayments;
+  const entityUploadRows = (entityUploads ?? []) as Array<{ processedAt: string | null; uploadedAt: string | null }>;
+  const latestDataAt = entityUploadRows
+    .map((upload) => upload.processedAt ?? upload.uploadedAt)
+    .filter((value): value is string => Boolean(value))
+    .map((value: string) => new Date(value).getTime())
+    .filter((value: number) => !Number.isNaN(value))
+    .sort((a, b) => b - a)[0] ?? 0;
+  const latestScoredAt = allStudents
+    .map((student) => student.computedAt)
+    .filter((value): value is string => Boolean(value))
+    .map((value) => new Date(value).getTime())
+    .filter((value) => !Number.isNaN(value))
+    .sort((a, b) => b - a)[0] ?? 0;
+  const unscoredCount = allStudents.filter((student) => !student.computedAt).length;
+  const dataOutdated = latestDataAt > latestScoredAt;
+  const shouldPromptScoring = hasStructuredRisk && summary.totalStudents > 0 && (unscoredCount > 0 || dataOutdated);
 
   return (
-    <div className="page-fade">
+    <div className="page-fade" style={{ position: "relative" }}>
+      {/* Faint truck-art watermark — desi ambient texture */}
+      <Image
+        src="/assets/desi/tracktar.png"
+        alt=""
+        width={320}
+        height={320}
+        aria-hidden
+        style={{ position: "absolute", top: -24, right: -32, width: 280, height: "auto", opacity: 0.15, pointerEvents: "none", zIndex: 0, userSelect: "none" }}
+      />
+      {/* Faint pani-puri watermark — bottom left */}
+      <Image
+        src="/assets/desi/panipuri.png"
+        alt=""
+        width={320}
+        height={320}
+        aria-hidden
+        style={{ position: "absolute", bottom: -24, left: -32, width: 280, height: "auto", opacity: 0.15, pointerEvents: "none", zIndex: 0, userSelect: "none" }}
+      />
       {/* Page header */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24 }}>
-        <div>
-          <div style={{ fontSize: 14, color: "var(--neutral-500)" }}>{greeting}, {dbUser.academy.name}</div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.02em", margin: "4px 0 0" }}>
-            {headline}
-          </h1>
+      <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <Image src="/assets/desi/scoter.png" alt="" width={64} height={64} style={{ width: 56, height: "auto", objectFit: "contain", flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 14, color: "var(--neutral-500)" }}>{greeting}, {dbUser.academy.name}</div>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.02em", margin: "4px 0 0" }}>
+              {headline}
+            </h1>
+          </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-          <RiskScoringButton disabled={!hasStructuredRisk || summary.totalStudents === 0} />
           <Link href="/uploads/new" style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: lastUpload ? "1px solid var(--neutral-200)" : "none", background: lastUpload ? "#fff" : "var(--primary-500)", color: lastUpload ? "var(--neutral-700)" : "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
             {lastUpload ? <><RefreshCw size={14} /> Update data</> : "Upload data"}
           </Link>
@@ -99,7 +140,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* KPI row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
         <StatCard tinted eyebrow="Total students" value={summary.totalStudents.toLocaleString()} sub={dbUser.academy.name} />
         <StatCard eyebrow="High risk" value={summary.highRiskCount.toLocaleString()} sub={`${summary.mediumRiskCount} medium risk`} deltaTone="down" />
         <StatCard eyebrow="Revenue at risk" value={`${currencySymbol}${summary.estimatedRevenueAtRisk.toLocaleString()}`} sub="high-risk active fees" />
@@ -107,39 +148,50 @@ export default async function DashboardPage() {
       </div>
 
       {!hasStructuredRisk && summary.totalStudents > 0 && (
-        <div style={{ marginTop: 16, padding: "14px 16px", borderRadius: 8, border: "1px solid #FDE68A", background: "#FFFBEB", color: "#78350F", fontSize: 13, lineHeight: 1.55 }}>
-          <strong>No churn prediction yet.</strong> Students are imported, but Rakho AI needs session history and payment data before showing full risk scores.
-          {!hasSessions ? " Upload sessions to unlock attendance and recency risk." : ""}
-          {!hasPayments ? " Upload payments to improve fee-risk accuracy." : ""}
+        <div style={{ marginTop: 16, padding: "18px 20px", borderRadius: 12, border: "1px solid var(--primary-200, #99F6E4)", background: "var(--primary-50, #F0FDFA)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 280, flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#115E59", marginBottom: 4 }}>
+              Add data to unlock churn prediction
+            </div>
+            <div style={{ fontSize: 13, color: "#0F766E", lineHeight: 1.55 }}>
+              Your {summary.totalStudents.toLocaleString()} student{summary.totalStudents === 1 ? "" : "s"} {summary.totalStudents === 1 ? "is" : "are"}{" "}
+              imported, but Rakho AI can&apos;t score churn risk yet —
+              {!hasSessions ? " attendance" : ""}{!hasSessions && !hasPayments ? " and" : ""}{!hasPayments ? " fees & payments" : ""}{" "}
+              {(!hasSessions && !hasPayments) ? "are" : "is"} still missing.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+            {!hasSessions && (
+              <Link href="/uploads/new?entity=sessions" style={{ fontSize: 13, fontWeight: 600, padding: "9px 16px", borderRadius: "var(--radius-md)", background: "var(--primary-500)", color: "#fff", textDecoration: "none", whiteSpace: "nowrap" }}>
+                Upload attendance
+              </Link>
+            )}
+            {!hasPayments && (
+              <Link href="/uploads/new?entity=payments" style={{ fontSize: 13, fontWeight: 600, padding: "9px 16px", borderRadius: "var(--radius-md)", background: hasSessions ? "var(--primary-500)" : "#fff", color: hasSessions ? "#fff" : "#0F766E", border: hasSessions ? "none" : "1px solid var(--primary-200, #99F6E4)", textDecoration: "none", whiteSpace: "nowrap" }}>
+                Upload fees &amp; payments
+              </Link>
+            )}
+          </div>
         </div>
       )}
 
+      {shouldPromptScoring && (
+        <RiskScoringButton unscoredCount={unscoredCount} dataOutdated={dataOutdated} />
+      )}
+
       {/* Charts row */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 16, marginTop: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1.4fr 1fr", gap: 16, marginTop: 16 }}>
         <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", padding: 20, boxShadow: "var(--shadow-xs)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--neutral-900)" }}>Retention trend</div>
-            <div style={{ fontSize: 12, color: "var(--neutral-500)" }}>Last 12 months</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--neutral-900)" }}>Low-risk share by month</div>
+            <div style={{ fontSize: 12, color: "var(--neutral-500)" }}>By scoring month</div>
           </div>
           <AreaChart data={charts.retentionTrend} />
         </div>
 
         <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", padding: 20, boxShadow: "var(--shadow-xs)" }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: "var(--neutral-900)", marginBottom: 14 }}>Risk breakdown</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-            <Donut data={charts.riskBreakdown} size={120} thickness={14} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
-              {charts.riskBreakdown.map(r => (
-                <div key={r.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--neutral-700)" }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.color }} />
-                    {r.label}
-                  </span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--neutral-900)" }}>{r.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <RiskDonut data={charts.riskBreakdown} size={120} thickness={14} />
         </div>
 
         <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", padding: 20, boxShadow: "var(--shadow-xs)" }}>
@@ -184,8 +236,11 @@ export default async function DashboardPage() {
             </Link>
           ))}
           {atRisk.length === 0 && (
-            <div style={{ padding: "30px 4px 10px", borderTop: "1px solid var(--neutral-100)", fontSize: 14, color: "var(--neutral-500)", textAlign: "center" }}>
-              No high or medium risk students yet.
+            <div style={{ padding: "26px 4px 14px", borderTop: "1px solid var(--neutral-100)", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+              <Image src="/assets/desi/scoter.png" alt="" width={120} height={120} style={{ width: 96, height: "auto", objectFit: "contain" }} />
+              <div style={{ fontSize: 14, color: "var(--neutral-500)", textAlign: "center" }}>
+                All clear — no students at the door. Sab theek hai.
+              </div>
             </div>
           )}
         </div>
@@ -193,7 +248,10 @@ export default async function DashboardPage() {
         {/* AI suggestions */}
         <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", padding: 20, boxShadow: "var(--shadow-xs)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--neutral-900)" }}>AI suggestions</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15, fontWeight: 600, color: "var(--neutral-900)" }}>
+              <Image src="/assets/desi/dhool.png" alt="" width={22} height={22} style={{ width: 22, height: 22, objectFit: "contain" }} />
+              AI suggestions
+            </div>
             <div style={{ fontSize: 12, color: "var(--neutral-500)" }}>{charts.recommendations.length} pending</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -211,8 +269,11 @@ export default async function DashboardPage() {
               </div>
             ))}
             {charts.recommendations.length === 0 && (
-              <div style={{ fontSize: 14, color: "var(--neutral-500)", lineHeight: 1.5 }}>
-                No recommendations yet. Upload and score student data to populate this panel.
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "12px 0" }}>
+                <Image src="/assets/desi/roofaza.png" alt="" width={90} height={120} style={{ height: 96, width: "auto", objectFit: "contain" }} />
+                <div style={{ fontSize: 14, color: "var(--neutral-500)", lineHeight: 1.5, textAlign: "center" }}>
+                  No recommendations yet. Upload and score student data to populate this panel.
+                </div>
               </div>
             )}
           </div>

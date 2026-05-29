@@ -38,6 +38,24 @@ function daysBetween(from: Date, to: Date): number {
   return Math.max(0, Math.floor((to.getTime() - from.getTime()) / 86_400_000));
 }
 
+function isMissingColumnError(error: { message?: string } | null): boolean {
+  return /column .* does not exist|schema cache|Could not find .* column/i.test(error?.message ?? "");
+}
+
+async function insertWithLegacyColumnFallback(table: "Session" | "Payment", payload: Record<string, unknown>, optionalKeys: string[]) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (db as any).from(table).insert(payload);
+  if (!error) return;
+  if (!isMissingColumnError(error)) throw new Error(`Failed to import ${table.toLowerCase()}: ${error.message}`);
+
+  const legacyPayload = { ...payload };
+  for (const key of optionalKeys) delete legacyPayload[key];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: legacyError } = await (db as any).from(table).insert(legacyPayload);
+  if (legacyError) throw new Error(`Failed to import ${table.toLowerCase()}: ${legacyError.message}`);
+}
+
 async function updateImportSetStatus(importSetId: string | null | undefined, entityType: EntityType, status: string) {
   if (!importSetId) return;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,21 +79,27 @@ async function syncStructuredStudentSummaries(academyId: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: students, error: studentsError } = await (db as any)
     .from("Student")
-    .select("id, name, externalId, contact, subject, tutor, feesAmount, rawDataJson")
+    .select("id, name, externalId, contact, subject, tutor, feesAmount, rawDataJson, attendanceRate, lastSessionDate, paymentStatus, lastPaymentDate, totalSessions")
     .eq("academyId", academyId) as { data: StructuredStudentRow[] | null; error: { message: string } | null };
   if (studentsError) throw new Error(`Failed to load students for summary sync: ${studentsError.message}`);
+
+  // Stored summary values already on the Student row (e.g. from an aggregate
+  // upload). Preserved when an entity has no event rows to recompute from, so a
+  // payments import does not wipe aggregate attendance and vice-versa.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const storedById = new Map<string, any>((students as any[] ?? []).map((s) => [s.id, s]));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: sessions, error: sessionsError } = await (db as any)
     .from("Session")
-    .select("studentId, sessionDate, attendanceStatus, rawStatus")
+    .select("studentId, sessionDate, attendanceStatus")
     .eq("academyId", academyId) as { data: StructuredSessionRow[] | null; error: { message: string } | null };
   if (sessionsError) throw new Error(`Failed to load sessions for summary sync: ${sessionsError.message}`);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: payments, error: paymentsError } = await (db as any)
     .from("Payment")
-    .select("studentId, paymentDate, paymentStatus, rawStatus, isLate, amount, overdueAmount")
+    .select("studentId, paymentDate, paymentStatus, amount, overdueAmount")
     .eq("academyId", academyId) as { data: StructuredPaymentRow[] | null; error: { message: string } | null };
   if (paymentsError) throw new Error(`Failed to load payments for summary sync: ${paymentsError.message}`);
 
@@ -86,18 +110,39 @@ async function syncStructuredStudentSummaries(academyId: string) {
     payments: payments ?? [],
   });
 
+  const toDate = (value: unknown): Date | null => {
+    if (!value) return null;
+    const d = new Date(value as string);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
   for (const student of canonical) {
-    const studentId = student.rawData.sourceStudentId as string | undefined;
+    // buildStructuredStudentSignals returns sourceStudentId at the top level.
+    const studentId = (student.sourceStudentId ?? student.rawData.sourceStudentId) as string | undefined;
     if (!studentId) continue;
+
+    const stored = storedById.get(studentId);
+    const signals = student.rawData.structuredSignals as { countedSessions?: number; paymentRows?: number } | undefined;
+    const hasSessions = (signals?.countedSessions ?? 0) > 0;
+    const hasPayments = (signals?.paymentRows ?? 0) > 0;
+
+    // Only overwrite an entity's fields when this academy actually has event
+    // rows for it; otherwise keep whatever is already stored (e.g. aggregate).
+    const attendanceRate = hasSessions ? student.attendanceRate : (typeof stored?.attendanceRate === "number" ? stored.attendanceRate : null);
+    const lastSessionDate = hasSessions ? student.lastSessionDate : toDate(stored?.lastSessionDate);
+    const totalSessions = hasSessions ? student.totalSessions : (typeof stored?.totalSessions === "number" ? stored.totalSessions : null);
+    const paymentStatus = hasPayments ? student.paymentStatus : (stored?.paymentStatus ?? null);
+    const lastPaymentDate = hasPayments ? student.lastPaymentDate : toDate(stored?.lastPaymentDate);
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (db as any)
       .from("Student")
       .update({
-        lastSessionDate: student.lastSessionDate?.toISOString() ?? null,
-        attendanceRate: student.attendanceRate,
-        paymentStatus: student.paymentStatus,
-        lastPaymentDate: student.lastPaymentDate?.toISOString() ?? null,
-        totalSessions: student.totalSessions,
+        lastSessionDate: lastSessionDate?.toISOString() ?? null,
+        attendanceRate,
+        paymentStatus,
+        lastPaymentDate: lastPaymentDate?.toISOString() ?? null,
+        totalSessions,
         updatedAt: now,
       })
       .eq("id", studentId);
@@ -127,6 +172,21 @@ async function clearStudentDataForAcademy(academyId: string) {
   await (db as any).from("Student").delete().eq("academyId", academyId);
 }
 
+// Sibling-merge guard: when a roster has no real student id, normalize.ts
+// synthesizes `${name}-${rowIndex}` as the externalId so every row is unique.
+// That synthetic id is per-upload only and MUST NOT be used to match existing
+// students across uploads (the row index is meaningless between files). We
+// detect the pattern here and treat it as "no external id" for cross-upload
+// matching, falling back to (contact AND name) / name instead.
+const SYNTHETIC_EXTERNAL_ID = /-\d+$/;
+
+function isSyntheticExternalId(externalId: string | null | undefined, name: string): boolean {
+  if (!externalId) return false;
+  // normalize.ts builds `${name.toLowerCase()}-${index}`.
+  return externalId.toLowerCase() === `${name.toLowerCase()}-${externalId.replace(/^.*-/, "")}`
+    && SYNTHETIC_EXTERNAL_ID.test(externalId);
+}
+
 async function importStudents(args: {
   academyId: string;
   uploadId: string;
@@ -135,18 +195,43 @@ async function importStudents(args: {
 }) {
   const { students } = await normalizeRows(args.rows, args.mappings, { academyId: args.academyId, uploadId: args.uploadId });
   const existing = await loadStudents(args.academyId);
-  const byExternal = new Map(existing.filter((s) => s.externalId).map((s) => [s.externalId!.toLowerCase(), s.id]));
-  const byContact = new Map(existing.filter((s) => s.contact).map((s) => [s.contact!.toLowerCase(), s.id]));
-  const byName = new Map(existing.map((s) => [s.name.toLowerCase(), s.id]));
+
+  // Real (non-synthetic) external ids are globally unique → safe single-id lookup.
+  const byExternal = new Map<string, string>();
+  // Composite (contact + name) is the only safe phone-based key: two siblings
+  // share a phone but differ by name, so keying on contact ALONE would collapse
+  // them. Keying on contact+name keeps siblings distinct while still matching a
+  // genuinely returning student (same phone AND same name).
+  const byContactName = new Map<string, string>();
+  // Bare name is a last-resort key. A name shared by >1 existing student is
+  // ambiguous, so we mark it null to force an insert rather than guess.
+  const byName = new Map<string, string | null>();
+
+  for (const s of existing) {
+    if (s.externalId && !isSyntheticExternalId(s.externalId, s.name)) {
+      byExternal.set(s.externalId.toLowerCase(), s.id);
+    }
+    if (s.contact) {
+      byContactName.set(`${s.contact.toLowerCase()}|${s.name.toLowerCase()}`, s.id);
+    }
+    const nameKey = s.name.toLowerCase();
+    byName.set(nameKey, byName.has(nameKey) ? null : s.id);
+  }
 
   let updatedRows = 0;
   let newRows = 0;
   for (const student of students) {
     const tutor = await getOrCreateTutor(args.academyId, student.tutor);
     const now = new Date().toISOString();
+    // Precedence: real external id → (contact + name) composite → unambiguous name.
+    // A bare shared phone with a DIFFERENT name no longer merges siblings.
+    const realExternalId =
+      student.externalId && !isSyntheticExternalId(student.externalId, student.name)
+        ? student.externalId.toLowerCase()
+        : null;
     const existingId =
-      (student.externalId && byExternal.get(student.externalId.toLowerCase())) ||
-      (student.contact && byContact.get(student.contact.toLowerCase())) ||
+      (realExternalId && byExternal.get(realExternalId)) ||
+      (student.contact && byContactName.get(`${student.contact.toLowerCase()}|${student.name.toLowerCase()}`)) ||
       byName.get(student.name.toLowerCase()) ||
       null;
 
@@ -251,8 +336,7 @@ async function importSessionsOrPayments(args: {
       const teacher = await getOrCreateTutor(args.academyId, teacherName);
       const rawStatus = stringOrNull(get(row, sources, "attendance_status"));
       const attendanceStatus = normalizeStructuredAttendanceStatus(rawStatus);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (db as any).from("Session").insert({
+      await insertWithLegacyColumnFallback("Session", {
         id: crypto.randomUUID(),
         academyId: args.academyId,
         studentId: match.studentId,
@@ -269,16 +353,14 @@ async function importSessionsOrPayments(args: {
         subject: String(get(row, sources, "subject") ?? "").trim() || null,
         durationMinutes: normalizeNumeric(get(row, sources, "duration_minutes"), true).value,
         rawDataJson: row as Json,
-      });
-      if (error) throw new Error(`Failed to import session: ${error.message}`);
+      }, ["externalSessionId", "rawStatus", "isCancelled", "isRescheduled"]);
     } else {
       const rawStatus = stringOrNull(get(row, sources, "payment_status"));
       const status = normalizeStructuredPaymentStatus(rawStatus);
       const dueDate = normalizeDate(get(row, sources, "due_date")).value;
       const paidDate = normalizeDate(get(row, sources, "paid_date")).value;
-      const paymentDate = paidDate ?? normalizeDate(get(row, sources, "payment_date")).value;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (db as any).from("Payment").insert({
+      const paymentDate = paidDate ?? normalizeDate(get(row, sources, "payment_date")).value ?? normalizeDate(get(row, sources, "last_payment_date")).value;
+      await insertWithLegacyColumnFallback("Payment", {
         id: crypto.randomUUID(),
         academyId: args.academyId,
         studentId: match.studentId,
@@ -297,8 +379,7 @@ async function importSessionsOrPayments(args: {
         overdueAmount: normalizeNumeric(get(row, sources, "overdue_amount"), true).value,
         method: stringOrNull(get(row, sources, "method")),
         rawDataJson: row as Json,
-      });
-      if (error) throw new Error(`Failed to import payment: ${error.message}`);
+      }, ["externalPaymentId", "billingMonth", "dueDate", "paidDate", "rawStatus", "isLate", "daysLate"]);
     }
     imported++;
   }
@@ -309,6 +390,80 @@ async function importSessionsOrPayments(args: {
     duplicateRows: 0,
     updatedRows: 0,
     newRows: imported,
+    unmatchedRows: unmatched,
+    lowConfidenceRows: lowConfidence,
+    ignoredRows: unmatched + lowConfidence,
+  } satisfies ImportReviewSummary;
+}
+
+// A sessions sheet is "aggregate" when it carries pre-summarised attendance
+// (rate / total / last date per student) instead of one row per class.
+function sessionsAreAggregate(sources: Map<string, string>): boolean {
+  const hasEvent = sources.has("session_date") || sources.has("attendance_status");
+  const hasAggregate =
+    sources.has("attendance_rate") ||
+    sources.has("total_sessions") ||
+    sources.has("attended_sessions") ||
+    sources.has("last_session_date");
+  return !hasEvent && hasAggregate;
+}
+
+// Aggregate attendance has no per-class rows to count, so write the summary
+// fields straight onto the matched Student. The caller skips the session sync
+// (which recomputes from Session rows) so these values are not clobbered.
+async function importAggregateSessions(args: {
+  academyId: string;
+  uploadId: string;
+  rows: Record<string, unknown>[];
+  mappings: MappingResult[];
+  identifier: IdentifierSelection;
+}): Promise<ImportReviewSummary> {
+  const sources = sourceByField(args.mappings);
+  const students = await loadStudents(args.academyId);
+  const now = new Date().toISOString();
+  let imported = 0;
+  let unmatched = 0;
+  let lowConfidence = 0;
+
+  for (const row of args.rows) {
+    const match = matchStudentForImportRow(row, students, args.identifier);
+    if (match.status === "unmatched" || !match.studentId) {
+      unmatched++;
+      continue;
+    }
+    if (match.status === "needs_review" || match.confidence === "low") {
+      lowConfidence++;
+      continue;
+    }
+
+    const attendanceRate = normalizeNumeric(get(row, sources, "attendance_rate"), true).value;
+    const lastSessionDate = normalizeDate(get(row, sources, "last_session_date")).value;
+    const totalSessions =
+      normalizeNumeric(get(row, sources, "total_sessions"), true).value ??
+      normalizeNumeric(get(row, sources, "attended_sessions"), true).value;
+
+    const update: Record<string, unknown> = { updatedAt: now };
+    if (attendanceRate != null) update.attendanceRate = Math.round(attendanceRate);
+    if (lastSessionDate) update.lastSessionDate = lastSessionDate.toISOString();
+    if (totalSessions != null) update.totalSessions = Math.round(totalSessions);
+
+    // Only counts as imported if the row actually carried a summary value.
+    if (Object.keys(update).length > 1) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (db as any).from("Student").update(update).eq("id", match.studentId);
+      if (error) throw new Error(`Failed to update student attendance summary: ${error.message}`);
+      imported++;
+    } else {
+      unmatched++;
+    }
+  }
+
+  return {
+    totalRows: args.rows.length,
+    readyRows: imported,
+    duplicateRows: 0,
+    updatedRows: imported,
+    newRows: 0,
     unmatchedRows: unmatched,
     lowConfidenceRows: lowConfidence,
     ignoredRows: unmatched + lowConfidence,
@@ -342,24 +497,35 @@ export async function processStructuredUpload(
   } else if (entityType === "teachers") {
     summary = await importTeachers({ academyId, rows, mappings });
   } else {
-    if (mode === "replace") {
+    const identifier = upload.identifierJson as IdentifierSelection | null;
+    if (!identifier) throw new Error("Student Identifier is required for sessions and payments");
+
+    const sources = sourceByField(mappings);
+    const aggregateSessions = entityType === "sessions" && sessionsAreAggregate(sources);
+
+    if (mode === "replace" && !aggregateSessions) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let deleteQuery = (db as any).from(entityType === "sessions" ? "Session" : "Payment").delete().eq("academyId", academyId);
       deleteQuery = importSetId ? deleteQuery.eq("importSetId", importSetId) : deleteQuery.eq("uploadId", uploadId);
       await deleteQuery;
     }
-    const identifier = upload.identifierJson as IdentifierSelection | null;
-    if (!identifier) throw new Error("Student Identifier is required for sessions and payments");
-    summary = await importSessionsOrPayments({
-      academyId,
-      uploadId,
-      importSetId,
-      entityType,
-      rows,
-      mappings,
-      identifier,
-    });
-    await syncStructuredStudentSummaries(academyId);
+
+    if (aggregateSessions) {
+      // Aggregate attendance is written straight to Student; no Session rows,
+      // so we deliberately skip the per-event summary sync.
+      summary = await importAggregateSessions({ academyId, uploadId, rows, mappings, identifier });
+    } else {
+      summary = await importSessionsOrPayments({
+        academyId,
+        uploadId,
+        importSetId,
+        entityType,
+        rows,
+        mappings,
+        identifier,
+      });
+      await syncStructuredStudentSummaries(academyId);
+    }
   }
 
   const status = summary.unmatchedRows > 0 || summary.lowConfidenceRows > 0 ? "reviewed" : "imported";

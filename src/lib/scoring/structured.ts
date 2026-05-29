@@ -24,28 +24,36 @@ export async function runStructuredRiskScoring(academyId: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: students, error: studentsError } = await (db as any)
     .from("Student")
-    .select("id, name, externalId, contact, subject, tutor, feesAmount, rawDataJson")
+    .select("id, name, externalId, contact, subject, tutor, feesAmount, rawDataJson, attendanceRate, lastSessionDate, paymentStatus, lastPaymentDate, totalSessions")
     .eq("academyId", academyId) as { data: StructuredStudentRow[] | null; error: { message: string } | null };
   if (studentsError) throw new Error(`Failed to load students: ${studentsError.message}`);
   if (!students?.length) throw new Error("Import students before running risk scoring.");
 
+  // Stored summary fields already on the Student row (e.g. from an aggregate
+  // sessions/payments upload). Used as a fallback when there are no per-event
+  // Session/Payment rows to recompute from — otherwise aggregate data is ignored.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const storedById = new Map<string, any>((students as any[]).map((s) => [s.id, s]));
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: sessions, error: sessionsError } = await (db as any)
     .from("Session")
-    .select("studentId, sessionDate, attendanceStatus, rawStatus")
+    .select("studentId, sessionDate, attendanceStatus")
     .eq("academyId", academyId) as { data: StructuredSessionRow[] | null; error: { message: string } | null };
   if (sessionsError) throw new Error(`Failed to load sessions: ${sessionsError.message}`);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: payments, error: paymentsError } = await (db as any)
     .from("Payment")
-    .select("studentId, paymentDate, paymentStatus, rawStatus, isLate, amount, overdueAmount")
+    .select("studentId, paymentDate, paymentStatus, amount, overdueAmount")
     .eq("academyId", academyId) as { data: StructuredPaymentRow[] | null; error: { message: string } | null };
   if (paymentsError) throw new Error(`Failed to load payments: ${paymentsError.message}`);
 
-  if (!sessions?.length || !payments?.length) {
-    throw new Error("Import sessions and payments before running full risk scoring.");
-  }
+  // Score with whatever evidence exists. Missing sessions or payments lowers
+  // confidence (see getStructuredRiskConfidence) rather than blocking scoring —
+  // aggregate uploads store signals on the Student row, not as event rows.
+  const sessionRows = sessions ?? [];
+  const paymentRows = payments ?? [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: uploads } = await (db as any)
@@ -58,8 +66,8 @@ export async function runStructuredRiskScoring(academyId: string) {
   const now = new Date();
   const canonicalStudents = buildStructuredStudentSignals({
     students,
-    sessions,
-    payments,
+    sessions: sessionRows,
+    payments: paymentRows,
     now,
   });
 
@@ -69,39 +77,54 @@ export async function runStructuredRiskScoring(academyId: string) {
   const warnings: string[] = [];
   const scoredAt = now.toISOString();
   for (const student of canonicalStudents) {
-    const rule = computeRuleScore(student, now);
+    const studentId = student.sourceStudentId ?? (student.rawData.sourceStudentId as string | undefined);
+    if (!studentId) {
+      warnings.push(`Skipped ${student.name}: missing source student id.`);
+      continue;
+    }
+
+    // Prefer signals recomputed from event rows; fall back to values already
+    // stored on the Student (e.g. from an aggregate upload) so they still count.
+    const stored = storedById.get(studentId);
+    const toDate = (value: unknown): Date | null => {
+      if (!value) return null;
+      const d = new Date(value as string);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+    const merged = {
+      ...student,
+      attendanceRate: student.attendanceRate ?? (typeof stored?.attendanceRate === "number" ? stored.attendanceRate : null),
+      lastSessionDate: student.lastSessionDate ?? toDate(stored?.lastSessionDate),
+      paymentStatus: student.paymentStatus ?? stored?.paymentStatus ?? null,
+      lastPaymentDate: student.lastPaymentDate ?? toDate(stored?.lastPaymentDate),
+      totalSessions: student.totalSessions ?? (typeof stored?.totalSessions === "number" ? stored.totalSessions : null),
+    };
+
+    const rule = computeRuleScore(merged, now);
     const structuredSignals = student.rawData.structuredSignals as { paymentRows?: number; countedSessions?: number } | undefined;
     const confidence = getStructuredRiskConfidence({
       hasStudentIdentifier: !!student.externalId,
-      hasSessions: (structuredSignals?.countedSessions ?? 0) > 0,
-      hasPayments: (structuredSignals?.paymentRows ?? 0) > 0,
+      hasSessions: (structuredSignals?.countedSessions ?? 0) > 0 || merged.attendanceRate != null || merged.lastSessionDate != null,
+      hasPayments: (structuredSignals?.paymentRows ?? 0) > 0 || merged.paymentStatus != null,
       latestDataAt,
       now,
     });
     const riskScore = Math.min(100, rule.score);
     const riskBand = getRiskBand(riskScore);
 
-    if (riskBand === "HIGH") riskCounts.high++;
-    if (riskBand === "MEDIUM") riskCounts.medium++;
-    if (riskBand === "LOW") riskCounts.low++;
-    confidenceCounts[confidence.level]++;
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: updateError } = await (db as any)
       .from("Student")
       .update({
-        lastSessionDate: student.lastSessionDate?.toISOString() ?? null,
-        attendanceRate: student.attendanceRate,
-        paymentStatus: student.paymentStatus,
-        lastPaymentDate: student.lastPaymentDate?.toISOString() ?? null,
-        totalSessions: student.totalSessions,
+        lastSessionDate: merged.lastSessionDate?.toISOString() ?? null,
+        attendanceRate: merged.attendanceRate,
+        paymentStatus: merged.paymentStatus,
+        lastPaymentDate: merged.lastPaymentDate?.toISOString() ?? null,
+        totalSessions: merged.totalSessions,
         updatedAt: now.toISOString(),
       })
-      .eq("id", student.rawData.sourceStudentId as string);
+      .eq("id", studentId);
     if (updateError) throw new Error(`Failed to update structured student signals: ${updateError.message}`);
-
-    const studentId = student.rawData.sourceStudentId as string | undefined;
-    if (!studentId) continue;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: riskError } = await (db as any).from("RiskAssessment").insert({
@@ -111,6 +134,10 @@ export async function runStructuredRiskScoring(academyId: string) {
       riskScore,
       riskBand,
       reasonsJson: [
+        // Surface what the owner still needs to upload so a low-evidence student
+        // reads as "needs data", not a confident "low risk".
+        ...(merged.attendanceRate == null && !merged.lastSessionDate ? ["No attendance data uploaded yet"] : []),
+        ...(!merged.paymentStatus && !merged.lastPaymentDate ? ["No payment data uploaded yet"] : []),
         ...rule.reasons,
         confidence.label,
       ] as unknown as Json,
@@ -120,6 +147,11 @@ export async function runStructuredRiskScoring(academyId: string) {
       aiModel: "structured-rules-v1",
     });
     if (riskError) throw new Error(`Failed to save risk assessment: ${riskError.message}`);
+
+    if (riskBand === "HIGH") riskCounts.high++;
+    if (riskBand === "MEDIUM") riskCounts.medium++;
+    if (riskBand === "LOW") riskCounts.low++;
+    confidenceCounts[confidence.level]++;
     studentsScored++;
   }
 
@@ -129,16 +161,16 @@ export async function runStructuredRiskScoring(academyId: string) {
 
   return {
     studentsScored,
-    sessionsUsed: sessions.length,
-    paymentsUsed: payments.length,
+    sessionsUsed: sessionRows.length,
+    paymentsUsed: paymentRows.length,
     riskCounts,
     confidenceCounts,
     scoredAt,
     warnings,
     // Backward-compatible aliases for any older callers.
     scored: studentsScored,
-    sessions: sessions.length,
-    payments: payments.length,
+    sessions: sessionRows.length,
+    payments: paymentRows.length,
     confidence: latestDataAt ? getStructuredRiskConfidence({
       hasStudentIdentifier: true,
       hasSessions: true,

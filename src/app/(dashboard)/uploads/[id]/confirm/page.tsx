@@ -101,9 +101,10 @@ export default function ConfirmPage() {
   }
 
   return (
-    <div className="page-fade" style={{ maxWidth: 680, margin: "0 auto" }}>
-      <UploadStepper currentStep="confirm" />
+    <div className="page-fade">
+      <UploadStepper currentStep={state === "done" ? "next" : "confirm"} />
 
+      <div style={{ maxWidth: 680, margin: "0 auto" }}>
       {state === "checking" && (
         <LoadingSpinner label="Checking your data…" />
       )}
@@ -221,6 +222,21 @@ export default function ConfirmPage() {
             <ReceiptMetric label="Unmatched" value={receipt?.unmatchedRows ?? 0} />
             <ReceiptMetric label="Low confidence" value={receipt?.lowConfidenceRows ?? 0} />
           </div>
+          {(entityType === "sessions" || entityType === "payments") && (
+            <div style={{ maxWidth: 560, margin: "0 auto 24px", padding: "12px 14px", borderRadius: 8, border: "1px solid #FDE68A", background: "#FFFBEB", display: "flex", gap: 10, textAlign: "left", alignItems: "flex-start" }}>
+              <AlertTriangle size={16} color="#B45309" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ fontSize: 13, lineHeight: 1.5, color: "#78350F" }}>
+                <strong>Risk scores need an update.</strong> This import changed {entityType === "sessions" ? "attendance" : "payment"} data. Go to the dashboard next and run scoring so student risk labels use the latest records.
+              </div>
+            </div>
+          )}
+          {entityType === "students" && (
+            <div style={{ maxWidth: 560, margin: "0 auto 24px", padding: "12px 14px", borderRadius: 8, border: "1px solid #CCFBF1", background: "#F0FDFA", textAlign: "left" }}>
+              <div style={{ fontSize: 13, lineHeight: 1.5, color: "#115E59" }}>
+                <strong>Next: add sessions and payments.</strong> Risk scoring appears after Rakho has attendance or payment records to evaluate.
+              </div>
+            </div>
+          )}
           <button
             onClick={() => router.push("/dashboard")}
             style={{ fontSize: 14, fontWeight: 500, padding: "10px 24px", borderRadius: "var(--radius-md)", border: "none", background: "var(--primary-500)", color: "#fff", cursor: "pointer" }}
@@ -235,6 +251,7 @@ export default function ConfirmPage() {
           {errorMsg}
         </div>
       )}
+      </div>
     </div>
   );
 }

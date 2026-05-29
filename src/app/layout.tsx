@@ -4,6 +4,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Rakho AI — Student Retention Analytics",
   description: "AI-powered student retention analytics for tutoring businesses.",
+  icons: {
+    icon: "/assets/favicon.ico",
+    shortcut: "/assets/favicon.ico",
+    apple: "/assets/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

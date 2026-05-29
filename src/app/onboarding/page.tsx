@@ -52,7 +52,7 @@ export default function OnboardingPage() {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 flex flex-col items-center gap-3 text-center">
-        <Image src="/assets/logo.svg" alt="Rakho AI" width={120} height={34} priority />
+        <Image src="/assets/logo.png" alt="Rakho AI" width={126} height={34} priority />
         <h1 className="text-2xl font-bold text-[var(--neutral-900)]" style={{ fontFamily: "var(--font-display)" }}>
           Set up your academy
         </h1>

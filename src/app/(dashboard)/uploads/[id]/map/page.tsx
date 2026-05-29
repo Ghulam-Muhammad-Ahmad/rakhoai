@@ -64,9 +64,9 @@ export default async function MapPage({ params }: { params: Promise<{ id: string
     .order("createdAt", { ascending: false });
 
   return (
-    <div className="page-fade" style={{ padding: "32px 24px" }}>
+    <div className="page-fade">
       <UploadStepper currentStep="map" />
-      <div style={{ maxWidth: 960, margin: "0 auto 18px", display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, padding: 16, border: "1px solid var(--neutral-200)", borderRadius: 10, background: "#fff" }}>
+      <div style={{ maxWidth: 960, margin: "18px auto 20px", display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, padding: 16, border: "1px solid var(--neutral-200)", borderRadius: 10, background: "#fff" }}>
         <div>
           <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", fontWeight: 700 }}>Detected entity</div>
           <div style={{ marginTop: 4, fontSize: 14, color: "var(--neutral-900)", fontWeight: 600 }}>{label(entityType)}</div>

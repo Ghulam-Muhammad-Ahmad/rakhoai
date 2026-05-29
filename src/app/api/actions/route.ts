@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { createAction } from "@/lib/actions/actions";
 import { isActionStatus } from "@/lib/actions/action-core";
 import { deleteActionsForAcademy } from "@/lib/deletions/bulk-delete";
 import { normalizeDeleteIds } from "@/lib/deletions/bulk-delete-core";
+
+function revalidateActionPaths(studentId?: string | null) {
+  if (studentId) revalidatePath(`/students/${studentId}`);
+  revalidatePath("/students");
+  revalidatePath("/dashboard");
+  revalidatePath("/interventions");
+}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -41,6 +49,7 @@ export async function POST(req: NextRequest) {
       notes: typeof body.notes === "string" ? body.notes : null,
     });
 
+    revalidateActionPaths(action.studentId);
     return NextResponse.json({ action }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create action";
@@ -71,6 +80,7 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const result = await deleteActionsForAcademy(dbUser.academy.id, ids);
+    revalidateActionPaths();
     return NextResponse.json({ result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to delete interventions";

@@ -58,6 +58,8 @@ export async function updateActionStatus(args: {
   actionId: string;
   status: ActionStatus;
   notes?: string | null;
+  type?: string | null;
+  content?: string | null;
 }): Promise<ActionRow> {
   if (!isActionStatus(args.status)) throw new Error("Invalid action status");
 
@@ -72,9 +74,14 @@ export async function updateActionStatus(args: {
   if (!existing) throw new Error("Action not found");
 
   const update = buildActionStatusUpdate({ status: args.status, notes: args.notes });
+  const payload = {
+    ...update,
+    ...(typeof args.type === "string" ? { type: args.type } : {}),
+    ...(typeof args.content === "string" ? { content: args.content } : {}),
+  };
   const { data, error } = await db
     .from("Action")
-    .update(update)
+    .update(payload)
     .eq("id", args.actionId)
     .eq("academyId", args.academyId)
     .select("*")

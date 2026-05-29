@@ -192,8 +192,9 @@ export default function NormalizePage() {
 
 
   return (
-    <div className="page-fade" style={{ maxWidth: 900, margin: "0 auto" }}>
+    <div className="page-fade">
       <UploadStepper currentStep="normalize" />
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.02em", margin: 0 }}>
           Review import
@@ -254,7 +255,7 @@ export default function NormalizePage() {
           </div>
         </>
       )}
-
+      </div>
     </div>
   );
 }

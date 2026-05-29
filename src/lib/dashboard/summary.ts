@@ -9,7 +9,10 @@ export type DashboardSummary = {
 };
 
 function startOfMonth(date: Date): string {
-  return new Date(date.getFullYear(), date.getMonth(), 1).toISOString();
+  // Build the boundary in UTC so it matches the UTC-stored takenAt timestamps —
+  // a server in a non-UTC timezone would otherwise mis-bucket actions taken in
+  // the first/last hours of the month.
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)).toISOString();
 }
 
 export async function getDashboardSummary(
@@ -58,20 +61,26 @@ export async function getDashboardSummary(
     }
   }
 
-  const { count: studentsSavedThisMonth, error: countError } = await db
+  // Count DISTINCT students saved this month — a student can have multiple
+  // STUDENT_SAVED action rows, which would otherwise inflate the headline.
+  const { data: savedRows, error: countError } = await db
     .from("Action")
-    .select("id", { count: "exact", head: true })
+    .select("studentId")
     .eq("academyId", academyId)
     .eq("status", "STUDENT_SAVED")
     .gte("takenAt", startOfMonth(now));
 
   if (countError) throw new Error(`Failed to count saved students: ${countError.message}`);
 
+  const studentsSavedThisMonth = new Set(
+    (savedRows ?? []).map((r: { studentId: string | null }) => r.studentId).filter(Boolean)
+  ).size;
+
   return {
     totalStudents: students.length,
     highRiskCount,
     mediumRiskCount,
     estimatedRevenueAtRisk,
-    studentsSavedThisMonth: studentsSavedThisMonth ?? 0,
+    studentsSavedThisMonth,
   };
 }

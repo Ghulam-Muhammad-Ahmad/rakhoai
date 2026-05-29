@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Phone, User, Mail, UserRound, CheckCircle2, AlertCircle, CreditCard, MoreHorizontal } from "lucide-react";
+import { Phone, User, Mail, UserRound, CheckCircle2, AlertCircle, CreditCard } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
 import RiskBadge from "@/components/ui/RiskBadge";
 import { AreaChart } from "@/components/ui/Charts";
@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getStudentDetail } from "@/lib/students/risk";
 import { getCurrencySymbol } from "@/lib/currency";
+import { StudentDataModal } from "@/components/students/StudentDataModal";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -16,6 +17,18 @@ function activityTone(status: string) {
   if (status === "STUDENT_SAVED" || status === "DONE") return "var(--success)";
   if (status === "STUDENT_LOST") return "var(--error)";
   return "var(--warning)";
+}
+
+const STATUS_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  PENDING:       { label: "Pending",       color: "#B45309", bg: "#FFFBEB", border: "#FDE68A" },
+  IN_PROGRESS:   { label: "In progress",   color: "#0F766E", bg: "#F0FDFA", border: "#99F6E4" },
+  DONE:          { label: "Done",          color: "#1D4ED8", bg: "#EFF6FF", border: "#BFDBFE" },
+  STUDENT_SAVED: { label: "Student saved", color: "#047857", bg: "#ECFDF5", border: "#A7F3D0" },
+  STUDENT_LOST:  { label: "Student lost",  color: "#B91C1C", bg: "#FEF2F2", border: "#FECACA" },
+};
+
+function statusChipMeta(status: string) {
+  return STATUS_META[status] ?? { label: status, color: "var(--neutral-600)", bg: "var(--neutral-100)", border: "var(--neutral-200)" };
 }
 
 export default async function StudentProfilePage({ params }: Params) {
@@ -29,13 +42,23 @@ export default async function StudentProfilePage({ params }: Params) {
   const dbUser = await getAuthUserWithAcademy(user.id);
   if (!dbUser.academy) redirect("/onboarding");
 
-  const student = await getStudentDetail(dbUser.academy.id, id, getCurrencySymbol(dbUser.academy.currency));
+  const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
+  const student = await getStudentDetail(dbUser.academy.id, id, currencySymbol);
   if (!student) notFound();
 
   const trend = ["U1", "U2", "U3", "U4", "U5", "Now"].map((month) => ({
     month,
     rate: student.attendanceRate ?? 0,
   }));
+
+  // Once an intervention reaches a terminal outcome, replace the AI suggestion
+  // with a resolved banner — the next step is no longer "suggested".
+  const resolutionMap: Record<string, { title: string; body: string; color: string; bg: string; border: string; Icon: typeof CheckCircle2 }> = {
+    STUDENT_SAVED: { title: "Student saved", body: "This student was retained through an intervention. No further action needed right now.", color: "#047857", bg: "#ECFDF5", border: "#A7F3D0", Icon: CheckCircle2 },
+    STUDENT_LOST:  { title: "Student lost",  body: "This student was marked as churned. Review what happened to improve future outreach.", color: "#B91C1C", bg: "#FEF2F2", border: "#FECACA", Icon: AlertCircle },
+    DONE:          { title: "Intervention done", body: "The recommended action was completed. Mark the student saved or lost once the outcome is known.", color: "#1D4ED8", bg: "#EFF6FF", border: "#BFDBFE", Icon: CheckCircle2 },
+  };
+  const resolution = student.latestActionStatus ? resolutionMap[student.latestActionStatus] ?? null : null;
 
   const infoRows = [
     { Icon: User, label: "Contact", val: student.contact ?? "Unknown" },
@@ -96,37 +119,59 @@ export default async function StudentProfilePage({ params }: Params) {
 
           <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", padding: 20, boxShadow: "var(--shadow-xs)" }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: "var(--neutral-900)", marginBottom: 14 }}>Recent actions</div>
-            {student.actions.length > 0 ? student.actions.map((action) => (
-              <div key={action.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--neutral-100)" }}>
-                {action.status === "PENDING" || action.status === "IN_PROGRESS" ? <AlertCircle size={16} color={activityTone(action.status)} /> : <CheckCircle2 size={16} color={activityTone(action.status)} />}
-                <div style={{ flex: 1, fontSize: 14, color: "var(--neutral-800)" }}>
-                  <strong>{action.type}</strong> · {action.status}
-                  {action.notes && <div style={{ color: "var(--neutral-500)", marginTop: 3 }}>{action.notes}</div>}
+            {student.actions.length > 0 ? student.actions.map((action) => {
+              const chip = statusChipMeta(action.status);
+              const title = action.content?.trim() || action.type;
+              return (
+              <div key={action.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--neutral-100)" }}>
+                <div style={{ marginTop: 1 }}>
+                  {action.status === "PENDING" || action.status === "IN_PROGRESS" ? <AlertCircle size={16} color={activityTone(action.status)} /> : <CheckCircle2 size={16} color={activityTone(action.status)} />}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--neutral-500)" }}>{new Date(action.updatedAt).toLocaleDateString()}</div>
+                <div style={{ flex: 1, minWidth: 0, fontSize: 14, color: "var(--neutral-800)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 600, color: "var(--neutral-900)" }}>{title}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: "var(--radius-full)", color: chip.color, background: chip.bg, border: `1px solid ${chip.border}` }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: chip.color }} />
+                      {chip.label}
+                    </span>
+                  </div>
+                  {action.notes && <div style={{ color: "var(--neutral-500)", marginTop: 4, fontSize: 13, lineHeight: 1.5 }}>{action.notes}</div>}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--neutral-500)", whiteSpace: "nowrap" }}>{new Date(action.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
               </div>
-            )) : (
+              );
+            }) : (
               <div style={{ fontSize: 14, color: "var(--neutral-500)" }}>No action has been logged for this student yet.</div>
             )}
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: "var(--primary-50)", border: "1px solid var(--primary-100)", borderRadius: 14, padding: "16px 18px", display: "flex", gap: 14, alignItems: "flex-start" }}>
-            <div style={{ width: 32, height: 32, borderRadius: "var(--radius-full)", background: "var(--primary-500)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 13 }}>R</div>
-            <div style={{ flex: 1, fontSize: 14, color: "var(--neutral-800)", lineHeight: 1.55 }}>
-              <strong style={{ color: "var(--neutral-900)", fontWeight: 600 }}>Suggested next step</strong>
-              <div style={{ marginTop: 6 }}>{student.recommendedAction ?? "No recommended action has been generated yet."}</div>
-              {student.confidence !== null && <span style={{ display: "block", fontSize: 12, color: "var(--neutral-500)", marginTop: 6 }}>Confidence {(student.confidence * 100).toFixed(0)}%</span>}
+          {resolution ? (
+            <div style={{ background: resolution.bg, border: `1px solid ${resolution.border}`, borderRadius: 14, padding: "16px 18px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+              <resolution.Icon size={20} color={resolution.color} style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ flex: 1, fontSize: 14, color: "var(--neutral-800)", lineHeight: 1.55 }}>
+                <strong style={{ color: resolution.color, fontWeight: 700 }}>{resolution.title}</strong>
+                <div style={{ marginTop: 6, color: "var(--neutral-600)" }}>{resolution.body}</div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div style={{ background: "var(--primary-50)", border: "1px solid var(--primary-100)", borderRadius: 14, padding: "16px 18px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+              <div style={{ width: 32, height: 32, borderRadius: "var(--radius-full)", background: "var(--primary-500)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 13 }}>R</div>
+              <div style={{ flex: 1, fontSize: 14, color: "var(--neutral-800)", lineHeight: 1.55 }}>
+                <strong style={{ color: "var(--neutral-900)", fontWeight: 600 }}>Suggested next step</strong>
+                <div style={{ marginTop: 6 }}>{student.recommendedAction ?? "No recommended action has been generated yet."}</div>
+                {student.confidence !== null && <span style={{ display: "block", fontSize: 12, color: "var(--neutral-500)", marginTop: 6 }}>Confidence {(student.confidence * 100).toFixed(0)}%</span>}
+              </div>
+            </div>
+          )}
 
           <ActionStatusPanel student={student} />
 
           <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", padding: 20, boxShadow: "var(--shadow-xs)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--neutral-900)" }}>Student info</div>
-              <MoreHorizontal size={16} color="var(--neutral-400)" />
+              <StudentDataModal studentId={student.id} studentName={student.name} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {infoRows.map((row) => (

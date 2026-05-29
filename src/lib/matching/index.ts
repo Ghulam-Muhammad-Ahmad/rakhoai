@@ -120,7 +120,8 @@ export async function runMapping(
   const aiResults = await aiMatch(
     needsAi.map(({ column, samples }) => ({ column, samples })),
     uploadId,
-    alreadyMapped
+    alreadyMapped,
+    entityType
   );
 
   // Apply AI results for previously-unmapped columns

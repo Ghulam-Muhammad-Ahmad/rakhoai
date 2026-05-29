@@ -34,6 +34,9 @@ export function computeRuleScore(
   if (payment.includes("overdue") || payment.includes("unpaid") || payment.includes("late")) {
     score += 20;
     reasons.push(`Payment status is ${student.paymentStatus}`);
+  } else if (payment.includes("pending") || payment.includes("partial") || payment.includes("due")) {
+    score += 10;
+    reasons.push(`Payment status is ${student.paymentStatus}`);
   }
 
   const structuredSignals = student.rawData.structuredSignals as

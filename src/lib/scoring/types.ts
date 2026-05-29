@@ -1,4 +1,5 @@
 export type CanonicalStudentInput = {
+  sourceStudentId?: string | null;
   externalId?: string | null;
   name: string;
   contact?: string | null;

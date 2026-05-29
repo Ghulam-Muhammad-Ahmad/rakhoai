@@ -8,8 +8,20 @@ import { logAiUsage } from "./usage-log";
 let client: OpenAI | null = null;
 
 export function getOpenAiClient(): OpenAI {
-  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!client) {
+    client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      // Optional OpenAI-compatible gateway (e.g. OpenCode Zen). Falls back to OpenAI default.
+      baseURL: process.env.OPENAI_BASE_URL || undefined,
+    });
+  }
   return client;
+}
+
+// When pointed at a non-OpenAI gateway, the hardcoded gpt-* model names won't exist there.
+// OPENAI_MODEL overrides every request's model so callers stay untouched.
+function resolveModel(requested?: string): string | undefined {
+  return process.env.OPENAI_MODEL || requested;
 }
 
 export async function createLoggedChatCompletion(args: {
@@ -25,7 +37,7 @@ export async function createLoggedChatCompletion(args: {
   try {
     const response = await getOpenAiClient().chat.completions.create({
       ...args.request,
-      model: args.request.model ?? args.model,
+      model: resolveModel(args.request.model ?? args.model) ?? args.model,
     });
 
     await logAiUsage({

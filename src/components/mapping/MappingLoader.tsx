@@ -132,7 +132,7 @@ export function MappingLoader({ uploadId, templates }: { uploadId: string; templ
 
   if (!mappings) {
     return (
-      <div style={{ maxWidth: 520, margin: "48px auto" }}>
+      <div style={{ maxWidth: 960, margin: "48px auto" }}>
         <div style={{ marginBottom: 32, textAlign: "center" }}>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 500, color: "var(--neutral-900)", marginBottom: 6 }}>
             Mapping your columns

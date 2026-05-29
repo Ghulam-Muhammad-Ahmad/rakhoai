@@ -278,6 +278,14 @@ export default function UploadNewPage() {
   const [navigating, setNavigating] = useState(false);
   const [entityType, setEntityType] = useState<EntityType>("students");
 
+  // Preselect the entity when arriving from an "Add attendance/fees" link.
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get("entity");
+    if (param && ["students", "teachers", "sessions", "payments"].includes(param)) {
+      setEntityType(param as EntityType);
+    }
+  }, []);
+
   useEffect(() => {
     fetch("/api/uploads/active")
       .then((r) => r.json())
@@ -351,10 +359,10 @@ export default function UploadNewPage() {
       : "";
 
   return (
-    <div className="page-fade" style={{ maxWidth: 860, margin: "0 auto" }}>
+    <div className="page-fade" style={{ margin: "0 auto" }}>
       {showGuide && <StructuredColumnGuideModal onClose={() => setShowGuide(false)} />}
 
-      <UploadStepper currentStep="upload" />
+      <UploadStepper currentStep={state === "preview" ? "detect" : state === "uploading" ? "file" : "upload"} />
 
       {state === "checking" && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--neutral-500)", fontSize: 14, padding: "40px 0" }}>
@@ -426,6 +434,7 @@ export default function UploadNewPage() {
               type="button"
               onClick={() => setEntityType(option.value)}
               style={{
+                position: "relative",
                 textAlign: "left",
                 padding: 14,
                 borderRadius: 8,
@@ -436,6 +445,26 @@ export default function UploadNewPage() {
                 minHeight: 118,
               }}
             >
+              {selected && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "#0F766E",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <CheckCircle size={13} />
+                </span>
+              )}
               <Icon size={17} color={selected ? "#0F766E" : "var(--neutral-500)"} />
               <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10, marginBottom: 4 }}>{option.label}</div>
               <div style={{ fontSize: 11, lineHeight: 1.45, color: "var(--neutral-500)" }}>{option.desc}</div>

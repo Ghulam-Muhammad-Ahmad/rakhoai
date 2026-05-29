@@ -2,27 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
 
-type ScoringSummary = {
-  studentsScored: number;
-  sessionsUsed: number;
-  paymentsUsed: number;
-  riskCounts: { high: number; medium: number; low: number };
-  confidenceCounts: { high: number; medium: number; low: number };
-  scoredAt: string;
-  warnings?: string[];
+type Props = {
+  unscoredCount: number;
+  dataOutdated: boolean;
 };
 
-export function RiskScoringButton({ disabled }: { disabled: boolean }) {
+export function RiskScoringButton({ unscoredCount, dataOutdated }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<ScoringSummary | null>(null);
 
   function runScoring() {
     setError(null);
-    setSummary(null);
     startTransition(async () => {
       const res = await fetch("/api/scoring/run", { method: "POST" });
       const data = await res.json();
@@ -30,52 +23,43 @@ export function RiskScoringButton({ disabled }: { disabled: boolean }) {
         setError(data.error ?? "Risk scoring failed.");
         return;
       }
-      setSummary(data as ScoringSummary);
       router.refresh();
     });
   }
 
+  const reason = dataOutdated
+    ? "New import data is available. Refresh risk scores so the dashboard uses the latest sessions and payments."
+    : `${unscoredCount.toLocaleString()} student${unscoredCount === 1 ? " has" : "s have"} not been scored yet.`;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+    <div style={{ marginTop: 16, padding: "12px 14px", borderRadius: 8, border: "1px solid #FDE68A", background: "#FFFBEB", color: "#78350F", fontSize: 13, lineHeight: 1.5, display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 260, flex: 1 }}>
+        <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+        <span>
+          <strong>Risk scores need an update.</strong> {reason}
+        </span>
+      </div>
       <button
         type="button"
-        disabled={disabled || isPending}
+        disabled={isPending}
         onClick={runScoring}
         style={{
-          fontSize: 14,
-          fontWeight: 600,
-          padding: "9px 14px",
-          borderRadius: "var(--radius-md)",
           border: "none",
-          background: disabled || isPending ? "var(--neutral-300)" : "var(--primary-500)",
-          color: "#fff",
-          cursor: disabled || isPending ? "not-allowed" : "pointer",
+          background: "transparent",
+          color: "#0F766E",
+          fontSize: 13,
+          fontWeight: 800,
+          cursor: isPending ? "wait" : "pointer",
           display: "inline-flex",
           alignItems: "center",
-          gap: 8,
+          gap: 6,
+          padding: "4px 0",
         }}
       >
         {isPending ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} /> : <Sparkles size={14} />}
-        {isPending ? "Scoring…" : "Run risk scoring"}
+        {isPending ? "Scoring..." : "Run scoring"}
       </button>
-      {error && <div style={{ fontSize: 12, color: "#DC2626", maxWidth: 300, textAlign: "right" }}>{error}</div>}
-      {summary && (
-        <div style={{ maxWidth: 360, textAlign: "right", padding: "10px 12px", borderRadius: 8, border: "1px solid #CCFBF1", background: "#F0FDFA", color: "#0F766E", fontSize: 12, lineHeight: 1.5 }}>
-          <div style={{ fontWeight: 700, marginBottom: 2 }}>Scoring complete</div>
-          <div>
-            Students scored: {summary.studentsScored.toLocaleString()} · Sessions used: {summary.sessionsUsed.toLocaleString()} · Payments used: {summary.paymentsUsed.toLocaleString()}
-          </div>
-          <div>
-            High risk: {summary.riskCounts.high} · Medium risk: {summary.riskCounts.medium} · Low risk: {summary.riskCounts.low}
-          </div>
-          <div>
-            Confidence: {summary.confidenceCounts.high} high · {summary.confidenceCounts.medium} medium · {summary.confidenceCounts.low} low
-          </div>
-          {summary.warnings?.map((warning) => (
-            <div key={warning} style={{ color: "#92400E", marginTop: 2 }}>{warning}</div>
-          ))}
-        </div>
-      )}
+      {error && <div style={{ flexBasis: "100%", color: "#DC2626", paddingLeft: 26 }}>{error}</div>}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

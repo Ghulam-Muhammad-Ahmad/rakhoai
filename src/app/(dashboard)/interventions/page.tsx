@@ -14,9 +14,19 @@ type ActionWithStudent = {
   content: string | null;
   status: string;
   notes: string | null;
+  takenAt: string | null;
   createdAt: string;
+  updatedAt: string;
   studentId: string;
-  Student: { name: string } | null;
+  Student: {
+    name: string;
+    contact: string | null;
+    subject: string | null;
+    attendanceRate: number | null;
+    lastSessionDate: string | null;
+    paymentStatus: string | null;
+    lastPaymentDate: string | null;
+  } | null;
 };
 
 export default async function InterventionsPage() {
@@ -36,11 +46,22 @@ export default async function InterventionsPage() {
     getStudentRiskList(academyId, {}, currencySymbol),
     db
       .from("Action")
-      .select(`id, type, content, status, notes, createdAt, studentId, Student(name)`)
+      .select(`
+        id,
+        type,
+        content,
+        status,
+        notes,
+        takenAt,
+        createdAt,
+        updatedAt,
+        studentId,
+        Student(name, contact, subject, attendanceRate, lastSessionDate, paymentStatus, lastPaymentDate)
+      `)
       .eq("academyId", academyId)
-      .in("status", ["IN_PROGRESS", "DONE", "STUDENT_SAVED", "STUDENT_LOST"])
+      .in("status", ["PENDING", "IN_PROGRESS", "DONE", "STUDENT_SAVED", "STUDENT_LOST"])
       .order("createdAt", { ascending: false })
-      .limit(20),
+      .limit(50),
   ]);
 
   const pending: PendingIntervention[] = students
@@ -57,6 +78,13 @@ export default async function InterventionsPage() {
       recommendedAction: s.recommendedAction ?? "Check-in",
       reasons: s.reasons,
       computedAt: s.computedAt,
+      contact: s.contact,
+      subject: s.subject,
+      attendanceLabel: s.attendanceLabel,
+      lastSessionLabel: s.lastSessionLabel,
+      paymentStatus: s.paymentStatus,
+      feeLabel: s.feeLabel,
+      confidence: s.confidence,
     }));
 
   const sent: SentAction[] = ((actionsResult.data ?? []) as unknown as ActionWithStudent[]).map((a) => ({
@@ -65,9 +93,17 @@ export default async function InterventionsPage() {
     content: a.content,
     status: a.status,
     notes: a.notes,
+    takenAt: a.takenAt,
     createdAt: a.createdAt,
+    updatedAt: a.updatedAt,
     studentId: a.studentId,
     studentName: a.Student?.name ?? "Unknown",
+    contact: a.Student?.contact ?? null,
+    subject: a.Student?.subject ?? null,
+    attendanceRate: a.Student?.attendanceRate ?? null,
+    lastSessionDate: a.Student?.lastSessionDate ?? null,
+    paymentStatus: a.Student?.paymentStatus ?? null,
+    lastPaymentDate: a.Student?.lastPaymentDate ?? null,
   }));
 
   return <InterventionsClient initialPending={pending} initialSent={sent} />;

@@ -151,13 +151,21 @@ export async function scoreStudentsWithAi(args: {
 
     for (const { student, key } of batch) {
       const ai = byKey.get(key) ?? fallbackResult(student, key);
-      const riskScore = Math.max(0, Math.min(100, Math.round(ai.riskScore)));
+      const rule = computeRuleScore(student);
+      const aiScore = Math.max(0, Math.min(100, Math.round(ai.riskScore ?? 0)));
+      // Trust floor: hard rule signals (long absence, low attendance, overdue
+      // payments) must never be talked down by the model. The AI may only raise
+      // risk above the rules, never below it — false negatives are the costly error.
+      const riskScore = Math.max(aiScore, rule.score);
+      // When the floor lifted the score, the rule reasons explain why; otherwise
+      // keep the model's nuanced reasons.
+      const reasons = riskScore > aiScore ? rule.reasons.slice(0, 3) : (ai.reasons ?? []).slice(0, 3);
       const result: AiRiskResult = {
         studentKey: key,
         riskScore,
         riskBand: getRiskBand(riskScore),
-        reasons: (ai.reasons ?? []).slice(0, 3),
-        recommendedAction: ai.recommendedAction,
+        reasons,
+        recommendedAction: ai.recommendedAction ?? fallbackResult(student, key).recommendedAction,
         confidence: Math.max(0, Math.min(1, ai.confidence ?? 0.5)),
       };
       output.push(result);

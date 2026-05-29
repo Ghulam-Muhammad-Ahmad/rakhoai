@@ -28,6 +28,7 @@ const canonical = core.buildStructuredStudentSignals({
 });
 
 assert.equal(canonical[0].totalSessions, 2);
+assert.equal(canonical[0].sourceStudentId, "s1");
 assert.equal(canonical[0].attendanceRate, 50);
 assert.equal(canonical[0].lastSessionDate?.toISOString(), "2026-05-03T00:00:00.000Z");
 assert.equal(canonical[0].rawData.structuredSignals.cancelledSessions, 1);

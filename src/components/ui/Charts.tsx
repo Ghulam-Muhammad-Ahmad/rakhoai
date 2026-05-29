@@ -1,57 +1,135 @@
 "use client";
 
+import { useState } from "react";
 import {
   AreaChart as RechartsArea,
   Area,
   BarChart as RechartsBar,
   Bar,
   Cell,
+  PieChart,
+  Pie,
+  Sector,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SectorProps = any;
 
-export function Donut({ data, size = 132, thickness = 16 }: {
+const RADIAN = Math.PI / 180;
+
+/**
+ * Interactive risk donut + synced legend.
+ * - Hover a slice OR a legend row → highlight (grow + dim others), center label follows it.
+ * - Click a slice OR a legend row → "cut" that slice out of the donut (explode) and pin it.
+ *   Click again (or click elsewhere) to release.
+ */
+export function RiskDonut({ data, size = 120, thickness = 14 }: {
   data: { label: string; value: number; color: string }[];
   size?: number; thickness?: number;
 }) {
-  const r = (size - thickness) / 2;
-  const c = 2 * Math.PI * r;
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
   const total = data.reduce((s, d) => s + d.value, 0);
-  const segments = data.reduce<{
-    label: string;
-    color: string;
-    len: number;
-    offset: number;
-  }[]>((items, d) => {
-    const offset = items.reduce((sum, item) => sum + item.len, 0);
-    const len = total > 0 ? (d.value / total) * c : 0;
-    return [...items, { label: d.label, color: d.color, len, offset }];
-  }, []);
+  const grow = 12; // headroom so an exploded slice never clips
+  const outerR = size / 2 - grow;
+  const innerR = outerR - thickness;
+
+  // Which slice is in focus: hover wins, else the pinned/clicked one.
+  const active = hovered != null ? hovered : selected;
+  const focus = active != null ? data[active] : null;
+  const centerValue = focus ? focus.value : total;
+  const centerColor = focus ? focus.color : "var(--neutral-900)";
+  const centerSub = focus && total > 0 ? `${Math.round((focus.value / total) * 100)}%` : "total";
+
+  const toggle = (i: number) => setSelected((prev) => (prev === i ? null : i));
+
+  // Active slice grows; if it's the pinned one, it also detaches (explodes) outward.
+  const renderActive = (props: SectorProps) => {
+    const { cx, cy, midAngle, startAngle, endAngle, innerRadius, outerRadius, fill } = props;
+    const explode = active === selected;
+    const offset = explode ? 10 : 0;
+    const dx = Math.cos(-midAngle * RADIAN) * offset;
+    const dy = Math.sin(-midAngle * RADIAN) * offset;
+    return (
+      <Sector cx={cx + dx} cy={cy + dy} startAngle={startAngle} endAngle={endAngle}
+        innerRadius={innerRadius} outerRadius={outerRadius + 6} fill={fill} cornerRadius={3} />
+    );
+  };
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--neutral-100)" strokeWidth={thickness} />
-      {segments.map((segment) => {
-        const dasharray = `${segment.len} ${c - segment.len}`;
-        return (
-          <circle key={segment.label} cx={size/2} cy={size/2} r={r} fill="none"
-            stroke={segment.color} strokeWidth={thickness}
-            strokeDasharray={dasharray}
-            strokeDashoffset={-segment.offset}
-            transform={`rotate(-90 ${size/2} ${size/2})`} />
-        );
-      })}
-      <text x="50%" y="48%" textAnchor="middle" fontFamily="var(--font-display)" fontSize="20" fontWeight="500" fill="var(--neutral-900)">{total.toLocaleString()}</text>
-      <text x="50%" y="62%" textAnchor="middle" fontFamily="var(--font-body)" fontSize="11" fill="var(--neutral-500)">total</text>
-    </svg>
+    <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+      <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+        <PieChart width={size} height={size}>
+          {total > 0 ? (
+            <Pie
+              data={data} dataKey="value" nameKey="label" cx="50%" cy="50%"
+              innerRadius={innerR} outerRadius={outerR} paddingAngle={1.5}
+              startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}
+              activeIndex={active ?? undefined} activeShape={renderActive}
+              onMouseEnter={(_, i) => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={(_, i) => toggle(i)}
+            >
+              {data.map((d, i) => (
+                <Cell key={d.label} fill={d.color}
+                  opacity={active == null || active === i ? 1 : 0.3}
+                  style={{ transition: "opacity 150ms", cursor: "pointer", outline: "none" }} />
+              ))}
+            </Pie>
+          ) : (
+            <Pie data={[{ label: "empty", value: 1 }]} dataKey="value" cx="50%" cy="50%"
+              innerRadius={innerR} outerRadius={outerR} fill="var(--neutral-100)" stroke="none" isAnimationActive={false} />
+          )}
+        </PieChart>
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 500, color: centerColor, lineHeight: 1 }}>
+            {centerValue.toLocaleString()}
+          </span>
+          <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--neutral-500)", marginTop: 3 }}>
+            {centerSub}
+          </span>
+        </div>
+      </div>
+
+      {/* Synced legend — rows act as slice controls and reflect live state */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+        {data.map((r, i) => {
+          const isActive = active === i;
+          const isPinned = selected === i;
+          const pct = total > 0 ? Math.round((r.value / total) * 100) : 0;
+          return (
+            <button key={r.label} type="button"
+              onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}
+              onClick={() => toggle(i)}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                gap: 8, fontSize: 13, padding: "4px 8px", borderRadius: 8,
+                border: "none", background: isActive ? "var(--neutral-50)" : "transparent",
+                cursor: "pointer", textAlign: "left", width: "100%",
+                opacity: active == null || isActive ? 1 : 0.5, transition: "opacity 150ms, background 150ms",
+                fontFamily: "inherit",
+              }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--neutral-700)", fontWeight: isPinned ? 700 : 400 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: r.color, boxShadow: isPinned ? `0 0 0 3px ${r.color}33` : "none", transition: "box-shadow 150ms" }} />
+                {r.label}
+              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--neutral-900)", whiteSpace: "nowrap" }}>
+                {r.value}{isActive ? ` · ${pct}%` : ""}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
 export function AreaChart({ data, height = 140, color = "var(--primary-500)", fill }: {
-  data: { month: string; rate: number }[];
+  data: { month: string; rate: number | null }[];
   height?: number;
   color?: string;
   fill?: string;

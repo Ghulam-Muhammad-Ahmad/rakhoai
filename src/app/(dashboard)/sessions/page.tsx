@@ -47,6 +47,29 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
     return matchesQuery && matchesStatus;
   });
 
+  // Aggregate-attendance fallback: when an academy has no per-class Session
+  // events, surface the per-student attendance summary stored on Student so the
+  // page reflects the data that was actually uploaded.
+  const hasAnyEvents = (data ?? []).length > 0;
+  type AttendanceSummary = { id: string; name: string; externalId: string | null; attendanceRate: number | null; totalSessions: number | null; lastSessionDate: string | null };
+  let summaryRows: AttendanceSummary[] = [];
+  if (!error && !hasAnyEvents) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: students } = await (db as any)
+      .from("Student")
+      .select("id, name, externalId, attendanceRate, totalSessions, lastSessionDate")
+      .eq("academyId", dbUser.academy.id) as { data: AttendanceSummary[] | null };
+    summaryRows = (students ?? [])
+      .filter((s) => s.attendanceRate != null || s.lastSessionDate || (s.totalSessions != null && s.totalSessions > 0))
+      .filter((s) => !query || `${s.name} ${s.externalId ?? ""}`.toLowerCase().includes(query))
+      .sort((a, b) => (a.attendanceRate ?? 999) - (b.attendanceRate ?? 999));
+  }
+
+  const fmtDate = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const rateColor = (rate: number | null) =>
+    rate == null ? "var(--neutral-500)" : rate < 50 ? "var(--error)" : rate < 75 ? "#B45309" : "#047857";
+
   return (
     <div className="page-fade">
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24 }}>
@@ -74,6 +97,31 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
         {error ? (
           <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 14, color: "#92400E", background: "#FFFBEB" }}>
             Sessions table is not available yet. Apply the structured import migration, then import sessions.
+          </div>
+        ) : hasAnyEvents ? (
+          <SessionsBulkTable rows={rows} />
+        ) : summaryRows.length > 0 ? (
+          <div>
+            <div style={{ padding: "12px 16px", background: "var(--primary-50)", borderBottom: "1px solid var(--primary-100)", fontSize: 13, color: "#0F766E", lineHeight: 1.5 }}>
+              Showing <strong>aggregate attendance</strong> from your latest summary upload — one attendance rate per student, not per-class records.{" "}
+              <Link href="/uploads/new?entity=sessions" style={{ color: "#0F766E", fontWeight: 600, textDecoration: "underline" }}>Upload a per-class session file</Link> to see individual sessions.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr", padding: "12px 16px", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", fontWeight: 600, borderBottom: "1px solid var(--neutral-100)" }}>
+              <div>Student</div><div>Attendance</div><div>Last session</div><div>Total sessions</div>
+            </div>
+            {summaryRows.map((s) => (
+              <div key={s.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr", padding: "12px 16px", alignItems: "center", borderBottom: "1px solid var(--neutral-100)", fontSize: 14 }}>
+                <div>
+                  <div style={{ fontWeight: 600, color: "var(--neutral-900)" }}>{s.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--neutral-500)" }}>{s.externalId ?? "—"}</div>
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: rateColor(s.attendanceRate) }}>
+                  {s.attendanceRate == null ? "—" : `${s.attendanceRate}%`}
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)", color: "var(--neutral-700)" }}>{fmtDate(s.lastSessionDate)}</div>
+                <div style={{ fontFamily: "var(--font-mono)", color: "var(--neutral-700)" }}>{s.totalSessions ?? "—"}</div>
+              </div>
+            ))}
           </div>
         ) : (
           <SessionsBulkTable rows={rows} />

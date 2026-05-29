@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" fill="none">
-  <g>
-    <circle cx="28" cy="28" r="26" fill="#0F766E"/>
-    <path d="M18 16 L18 41 M18 16 L31 16 C36 16 39 19 39 23.5 C39 28 36 31 31 31 L18 31 M28 31 L40 41" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="44" cy="14" r="3.5" fill="#F59E0B"/>
-  </g>
-  <text x="64" y="36" font-family="Fraunces, Georgia, serif" font-size="26" font-weight="500" fill="#0F172A" letter-spacing="-0.01em">Rakho</text>
-  <text x="151" y="36" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#64748B" letter-spacing="0.06em">AI</text>
-</svg>

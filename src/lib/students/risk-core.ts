@@ -58,6 +58,35 @@ export function normalizeRiskLevel(riskBand?: string | null, confidence?: number
   return "unscored";
 }
 
+export type MissingDataInput = {
+  attendanceRate?: number | null;
+  lastSessionDate?: string | null;
+  paymentStatus?: string | null;
+  lastPaymentDate?: string | null;
+  feesAmount?: number | null;
+};
+
+export type MissingData = {
+  attendance: boolean;
+  payments: boolean;
+  fees: boolean;
+  any: boolean;
+  labels: string[];
+};
+
+// Which risk-driving signals this student is still missing. Used to explain a
+// "Needs more data" student instead of silently scoring them LOW (= "safe").
+export function getMissingData(row: MissingDataInput): MissingData {
+  const attendance = row.attendanceRate == null && !row.lastSessionDate;
+  const payments = !row.paymentStatus && !row.lastPaymentDate;
+  const fees = row.feesAmount == null;
+  const labels: string[] = [];
+  if (attendance) labels.push("attendance");
+  if (payments) labels.push("payments");
+  if (fees) labels.push("fees");
+  return { attendance, payments, fees, any: labels.length > 0, labels };
+}
+
 export function selectLatestActionStatus<T extends ActionLike>(actions: T[] | null | undefined): string | null {
   if (!actions?.length) return null;
 

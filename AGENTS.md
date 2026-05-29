@@ -135,6 +135,7 @@ npx supabase gen types typescript --linked > src/lib/db/database.types.ts
 - Server-side DB access should use `src/lib/db/client.ts` and helpers in `src/lib/db/`.
 - Client components may use Supabase only for auth/session behavior, not direct application-table reads or writes.
 - Keep F3/F4/F5/F6 API contracts stable.
+- Use Tailwind CSS utility classes for React UI styling. Avoid inline `style` attributes except for truly dynamic runtime values that cannot be expressed cleanly with Tailwind.
 
 ---
 

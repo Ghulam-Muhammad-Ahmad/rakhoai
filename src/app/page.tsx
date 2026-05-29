@@ -7,7 +7,7 @@ function Header() {
     <header style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(10px)", borderBottom: "1px solid var(--neutral-100)" }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 16, paddingBottom: 16 }}>
         <Link href="/" style={{ display: "flex" }}>
-          <Image src="/assets/logo.svg" alt="Rakho AI" width={120} height={34} priority />
+          <Image src="/assets/logo.png" alt="Rakho AI" width={126} height={34} priority />
         </Link>
         <nav style={{ display: "flex", gap: 28 }}>
           {["Features", "How it works", "Pricing", "Stories"].map(l => (
@@ -261,7 +261,7 @@ function Footer() {
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 48, marginBottom: 40 }}>
           <div>
-            <Image src="/assets/logo-light.svg" alt="Rakho AI" width={120} height={34} style={{ marginBottom: 16 }} />
+            <Image src="/assets/logo.png" alt="Rakho AI" width={126} height={34} style={{ marginBottom: 16 }} />
             <p style={{ fontSize: 14, lineHeight: 1.6, color: "var(--neutral-400)", maxWidth: 320, margin: 0 }}>Rakho AI helps tutoring businesses keep the students they&apos;ve already won. Built for South Asia, the Gulf, and beyond.</p>
           </div>
           {sections.map(s => (

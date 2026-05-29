@@ -1,20 +1,19 @@
 import { createLoggedChatCompletion } from "@/lib/ai/openai-client";
 import { logAiUsage } from "@/lib/ai/usage-log";
+import { getImportFields, getRequiredField } from "@/lib/imports/schema";
+import type { EntityType } from "@/lib/imports/types";
 
-const SCHEMA_DESCRIPTION = `
-student_name       — student's full name (REQUIRED — every upload must have this)
-contact_info       — phone number, email, or WhatsApp contact
-join_date          — date the student enrolled or started (ISO date or DD/MM/YYYY)
-last_session_date  — date of the most recent class or session attended (critical for risk scoring)
-attendance_rate    — attendance percentage or fraction (e.g. 85%, 17/20, 0.85 — critical for risk scoring)
-last_payment_date  — date of the most recent payment received
-payment_status     — payment state text (paid, unpaid, overdue, late, cleared — critical for risk scoring)
-total_sessions     — total number of sessions/classes held or attended (integer)
-fees_amount        — fee amount charged (monthly, per session — strip currency symbols)
-subject            — subject, course, or class name
-tutor_assigned     — name of the assigned tutor or teacher
-notes              — any remarks, comments, or additional information
-`.trim();
+// Build the schema field list from the fields that THIS entity actually accepts,
+// so the model never maps to a field the merge step will silently drop.
+function buildSchemaDescription(entityType: EntityType): string {
+  const requiredField = getRequiredField(entityType);
+  return getImportFields(entityType)
+    .map((f) => {
+      const flag = f.value === requiredField ? " (REQUIRED — every upload must have this)" : "";
+      return `${f.value} — ${f.desc}${flag}`;
+    })
+    .join("\n");
+}
 
 export type AiMappingResult = Record<string, { field: string | null; confidence: number; reason?: string }>;
 
@@ -41,7 +40,8 @@ async function getRedis() {
 export async function aiMatch(
   unmappedColumns: { column: string; samples: string[] }[],
   uploadId: string,
-  alreadyMapped: { column: string; field: string; layer: "exact" | "fuzzy"; samples: string[] }[] = []
+  alreadyMapped: { column: string; field: string; layer: "exact" | "fuzzy"; samples: string[] }[] = [],
+  entityType: EntityType = "students"
 ): Promise<AiMappingResult> {
   if (!unmappedColumns.length && !alreadyMapped.length) return {};
 
@@ -98,8 +98,8 @@ export async function aiMatch(
           role: "system",
           content: `You are an expert at mapping messy spreadsheet columns to a student management schema.
 
-Schema fields (with descriptions):
-${SCHEMA_DESCRIPTION}
+Schema fields (with descriptions) — map ONLY to these fields, return null for anything that does not fit one of them:
+${buildSchemaDescription(entityType)}
 
 Your job:
 1. For COLUMNS TO MAP: assign the best-fit schema field (or null if none fits). Confidence 0.5–0.95.

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, MessageCircleHeart,
-  UserCog, Settings, Search, LogOut, Upload, GraduationCap,
+  Settings, Search, LogOut, Upload, GraduationCap,
   CalendarCheck, CreditCard, History,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -22,7 +22,6 @@ const navItems = [
 ];
 
 const manageItems = [
-  { href: "/team",     icon: UserCog,   label: "Team" },
   { href: "/settings", icon: Settings,  label: "Settings" },
 ];
 
@@ -53,7 +52,7 @@ function Sidebar() {
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-[var(--neutral-200)] bg-white px-3.5 py-5">
       <div className="px-1.5 py-1">
-        <Image src="/assets/logo.svg" alt="Rakho AI" width={120} height={34} priority />
+        <Image src="/assets/logo.png" alt="Rakho AI" width={126} height={34} priority />
       </div>
 
       <div className="flex flex-col gap-0.5">
@@ -154,7 +153,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
-        <main className="flex-1 px-8 py-6 pb-12">
+        <main className="flex-1 overflow-x-hidden px-8 py-6 pb-12">
           {children}
         </main>
       </div>
