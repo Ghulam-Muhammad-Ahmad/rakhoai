@@ -23,13 +23,13 @@ export function UploadStepper({ currentStep }: { currentStep: UploadStep }) {
       style={{
         marginBottom: 28,
         overflowX: "auto",
-        padding: "16px 18px",
+        padding: "12px 16px",
         border: "1px solid var(--neutral-200)",
         borderRadius: 12,
         background: "#fff",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 760 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
         {STEPS.map((step, i) => {
           const done = i < currentIndex;
           const active = i === currentIndex;
@@ -39,37 +39,41 @@ export function UploadStepper({ currentStep }: { currentStep: UploadStep }) {
               key={step.key}
               style={{ display: "flex", alignItems: "center", flex: i < STEPS.length - 1 ? 1 : "none" }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div
+                title={step.label}
+                style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}
+              >
                 <div
                   style={{
-                    width: 26,
-                    height: 26,
+                    width: active ? 24 : 20,
+                    height: active ? 24 : 20,
                     borderRadius: "50%",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: 700,
                     flexShrink: 0,
                     background: done || active ? "#0F766E" : "var(--neutral-100)",
                     color: done || active ? "#fff" : "var(--neutral-500)",
                     boxShadow: active ? "0 0 0 4px rgba(15,118,110,0.14)" : "none",
-                    transition: "background 0.15s, box-shadow 0.15s",
+                    transition: "all 0.15s",
                   }}
                 >
-                  {done ? <CheckIcon size={15} color="#fff" /> : i + 1}
+                  {done ? <CheckIcon size={12} color="#fff" /> : i + 1}
                 </div>
-                <span
-                  style={{
-                    fontSize: 12.5,
-                    fontWeight: active ? 600 : 500,
-                    color: active ? "var(--neutral-900)" : done ? "#0F766E" : "var(--neutral-400)",
-                    whiteSpace: "nowrap",
-                    transition: "color 0.15s",
-                  }}
-                >
-                  {step.label}
-                </span>
+                {active && (
+                  <span
+                    style={{
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: "var(--neutral-900)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {step.label}
+                  </span>
+                )}
               </div>
               {i < STEPS.length - 1 && (
                 <div
@@ -78,7 +82,8 @@ export function UploadStepper({ currentStep }: { currentStep: UploadStep }) {
                     height: 2,
                     borderRadius: 2,
                     background: done ? "#0F766E" : "var(--neutral-200)",
-                    margin: "0 10px",
+                    margin: "0 8px",
+                    minWidth: 12,
                     transition: "background 0.15s",
                   }}
                 />

@@ -1,46 +1,27 @@
 import type { ReactNode } from 'react'
-import { MotifLayer } from '@/components/auth/MotifLayer'
+import { AuthSideImage } from '@/components/auth/AuthBackgroundImages'
+
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="min-h-screen p-6"
-    >
+    <div className="min-h-screen p-4 sm:p-6" style={{ background: '#F4F9F8' }}>
       <div
-        className="relative flex flex-col min-h-[calc(100vh-48px)] rounded-lg overflow-hidden px-14 py-9"
-        style={{ background: '#F0FDFA' }}
+        className="relative flex min-h-[calc(100vh-32px)] flex-col overflow-hidden rounded-lg px-4 py-6 sm:min-h-[calc(100vh-48px)] sm:px-8 sm:py-9 lg:px-10"
+        style={{ background: '#F4F9F8' }}
       >
-        {/* Decorative motifs — hidden on mobile */}
-        <div className="hidden md:block">
-          <MotifLayer />
-        </div>
-
-        {/* Page content (login/signup card) */}
-        <main className="relative z-10 flex flex-1 items-center justify-center py-6 min-h-[540px]">
+        <main className="relative z-10 flex min-h-[540px] flex-1 items-center justify-center gap-[clamp(1rem,2vw,3rem)] py-6">
+          <AuthSideImage side="left" />
           {children}
+          <AuthSideImage side="right" />
         </main>
 
-        {/* Footer */}
-        <footer className="relative z-10 text-center text-xs py-2" style={{ color: '#475569' }}>
-          Copyright © Rakho AI 2026
+        <footer className="relative z-10 py-2 text-center text-xs" style={{ color: '#475569' }}>
+          Copyright &copy; Rakho AI 2026
           <span className="mx-2.5" style={{ color: '#94A3B8' }}>|</span>
           Privacy Policy
           <span className="mx-2.5" style={{ color: '#94A3B8' }}>|</span>
           Terms
         </footer>
       </div>
-
-      <style>{`
-        .motif {
-          position: absolute;
-          pointer-events: none;
-          z-index: 1;
-        }
-        .motif svg {
-          display: block;
-          width: 100%;
-          height: 100%;
-        }
-      `}</style>
     </div>
   )
 }

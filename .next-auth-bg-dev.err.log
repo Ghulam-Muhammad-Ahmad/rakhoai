@@ -1,0 +1,9 @@
+⚠ Port 3000 is in use by process 14916, using available port 3003 instead.
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:3002
+- PID:          24964
+- Dir:          D:\rakhoai\rakhoai-main
+- Log:          .next\dev\logs\next-development.log
+
+Run taskkill /PID 24964 /F to stop it.

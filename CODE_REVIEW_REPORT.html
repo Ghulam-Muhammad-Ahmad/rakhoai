@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RakhoAI — Code Review Report</title>
+<style>
+  :root {
+    --critical: #dc2626; --critical-bg: #fef2f2; --critical-border: #fecaca;
+    --high: #ea580c; --high-bg: #fff7ed; --high-border: #fed7aa;
+    --medium: #ca8a04; --medium-bg: #fefce8; --medium-border: #fde68a;
+    --low: #2563eb; --low-bg: #eff6ff; --low-border: #bfdbfe;
+    --retracted: #6b7280; --retracted-bg: #f9fafb; --retracted-border: #e5e7eb;
+    --bg: #0f172a; --surface: #1e293b; --surface2: #334155; --border: #475569;
+    --text: #f1f5f9; --text-muted: #94a3b8; --text-dim: #64748b;
+    --accent: #38bdf8; --accent-dim: #0ea5e9;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308; --orange: #f97316;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  .report-header { padding: 48px 0 32px; border-bottom: 1px solid var(--border); }
+  .report-header h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .report-header h1 span { color: var(--accent); }
+  .meta { display: flex; gap: 24px; color: var(--text-muted); font-size: 14px; margin-top: 12px; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; }
+  .verdict-banner { margin-top: 20px; padding: 16px 20px; border-radius: 12px; background: linear-gradient(135deg, #1e1b4b, #312e81); border: 1px solid #4338ca; display: flex; align-items: center; gap: 12px; }
+  .verdict-badge { background: #7c3aed; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+  .verdict-text { color: #c4b5fd; font-size: 14px; }
+  .verdict-text strong { color: #e0e7ff; }
+
+  /* Summary Grid */
+  .summary-section { padding: 32px 0; }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .summary-card { background: var(--surface); border-radius: 12px; padding: 20px; text-align: center; border: 1px solid var(--border); }
+  .summary-card .count { font-size: 36px; font-weight: 700; line-height: 1; }
+  .summary-card .label { font-size: 13px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .summary-card.critical .count { color: var(--critical); }
+  .summary-card.high .count { color: var(--high); }
+  .summary-card.medium .count { color: var(--medium); }
+  .summary-card.low .count { color: var(--low); }
+
+  /* Category Table */
+  .cat-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .cat-table th { background: var(--surface2); padding: 12px 16px; text-align: left; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .cat-table td { padding: 10px 16px; border-top: 1px solid var(--border); font-size: 14px; }
+  .cat-table tr:hover { background: rgba(56, 189, 248, 0.04); }
+  .cat-table .total-row { font-weight: 700; background: var(--surface2); }
+  .cat-table .total-row td { border-top: 2px solid var(--border); }
+
+  /* Corrections callout */
+  .corrections { margin-top: 20px; padding: 16px 20px; background: #1a1a2e; border: 1px solid #374151; border-radius: 12px; }
+  .corrections h4 { color: var(--yellow); font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .corrections p { color: var(--text-muted); font-size: 13px; }
+  .corrections .strike { text-decoration: line-through; color: var(--text-dim); }
+
+  /* Section headers */
+  .section-header { padding: 40px 0 20px; }
+  .section-header h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 12px; }
+  .severity-pill { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pill-critical { background: var(--critical-bg); color: var(--critical); border: 1px solid var(--critical-border); }
+  .pill-high { background: var(--high-bg); color: var(--high); border: 1px solid var(--high-border); }
+  .pill-medium { background: var(--medium-bg); color: var(--medium); border: 1px solid var(--medium-border); }
+  .pill-low { background: var(--low-bg); color: var(--low); border: 1px solid var(--low-border); }
+  .status-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 12px; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; margin-left: 8px; flex-shrink: 0; }
+  .st-fixed    { background: rgba(34,197,94,.15); color: #22c55e; }
+  .st-resolved { background: rgba(56,189,248,.15); color: #38bdf8; }
+  .st-deferred { background: rgba(234,179,8,.15); color: #eab308; }
+  .st-notbug   { background: rgba(107,114,128,.15); color: #94a3b8; }
+  .st-wontfix  { background: rgba(107,114,128,.1); color: #64748b; }
+
+  /* Issue Cards */
+  .issue-card { background: var(--surface); border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border); overflow: hidden; }
+  .issue-card.retracted { opacity: 0.6; border-style: dashed; }
+  .issue-top { padding: 16px 20px; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none; }
+  .issue-top:hover { background: rgba(56, 189, 248, 0.03); }
+  .issue-severity-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .dot-critical { background: var(--critical); box-shadow: 0 0 8px rgba(220, 38, 38, 0.4); }
+  .dot-high { background: var(--high); box-shadow: 0 0 8px rgba(234, 88, 12, 0.4); }
+  .dot-medium { background: var(--medium); box-shadow: 0 0 8px rgba(202, 138, 4, 0.4); }
+  .dot-low { background: var(--low); box-shadow: 0 0 8px rgba(37, 99, 235, 0.4); }
+  .dot-retracted { background: var(--text-dim); }
+  .issue-header { flex: 1; min-width: 0; }
+  .issue-title { font-size: 16px; font-weight: 600; }
+  .issue-title .strikethrough { text-decoration: line-through; color: var(--text-dim); }
+  .issue-meta { display: flex; gap: 16px; margin-top: 4px; flex-wrap: wrap; }
+  .issue-file { font-size: 13px; color: var(--accent); font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  .issue-cat { font-size: 12px; color: var(--text-dim); background: var(--surface2); padding: 2px 8px; border-radius: 4px; }
+  .issue-arrow { color: var(--text-dim); transition: transform 0.2s; flex-shrink: 0; margin-top: 4px; font-size: 18px; }
+  .issue-card.open .issue-arrow { transform: rotate(90deg); }
+  .issue-body { display: none; padding: 0 20px 20px 42px; }
+  .issue-card.open .issue-body { display: block; }
+  .issue-body p { color: var(--text-muted); font-size: 14px; margin-bottom: 12px; }
+  .issue-body p strong { color: var(--text); }
+  .issue-body ul { margin: 8px 0 12px 20px; color: var(--text-muted); font-size: 14px; }
+  .issue-body li { margin-bottom: 4px; }
+  .code-block { background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 12px 0; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.5; color: #c9d1d9; }
+  .code-block .comment { color: #8b949e; }
+  .code-block .keyword { color: #ff7b72; }
+  .code-block .string { color: #a5d6ff; }
+  .fix-box { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 8px; padding: 12px 16px; margin-top: 12px; }
+  .fix-box .fix-label { font-size: 12px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .fix-box p, .fix-box .code-block { margin-bottom: 0; }
+  .correction-box { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.2); border-radius: 8px; padding: 12px 16px; margin-top: 12px; }
+  .correction-box .correction-label { font-size: 12px; font-weight: 700; color: var(--yellow); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+
+  /* Verdict Section */
+  .verdict-section { padding: 40px 0 48px; }
+  .verdict-card { background: linear-gradient(135deg, #1e1b4b, #312e81); border: 1px solid #4338ca; border-radius: 16px; padding: 32px; }
+  .verdict-card h2 { font-size: 24px; margin-bottom: 16px; }
+  .verdict-card ol { margin-left: 20px; color: #c4b5fd; }
+  .verdict-card li { margin-bottom: 8px; font-size: 15px; }
+  .verdict-card li strong { color: #e0e7ff; }
+
+  /* Architecture section */
+  .arch-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .arch-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .arch-card p, .arch-card ul { color: var(--text-muted); font-size: 14px; }
+  .arch-card ul { margin-left: 20px; margin-top: 8px; }
+  .arch-card li { margin-bottom: 4px; }
+
+  /* Footer */
+  .report-footer { padding: 24px 0; border-top: 1px solid var(--border); text-align: center; color: var(--text-dim); font-size: 13px; margin-top: 32px; }
+
+  @media (max-width: 768px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .issue-top { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- HEADER -->
+<div class="report-header">
+  <h1><span>RakhoAI</span> — Full Codebase Review Report</h1>
+  <div class="meta">
+    <div class="meta-item">📅 2026-05-29</div>
+    <div class="meta-item">🔍 Senior Code Review (AI-Assisted)</div>
+    <div class="meta-item">📁 100+ files reviewed</div>
+  </div>
+  <div class="verdict-banner">
+    <span class="verdict-badge">Verdict</span>
+    <span class="verdict-text">This app is <strong>vibe coded</strong> — built quickly with AI agents without rigorous engineering discipline. Works for the happy path but has security holes, race conditions, and missing error boundaries.</span>
+  </div>
+</div>
+
+<!-- EXECUTIVE SUMMARY -->
+<div class="summary-section">
+  <h2 style="font-size:20px; margin-bottom:20px;">Executive Summary</h2>
+
+  <div class="summary-grid">
+    <div class="summary-card critical"><div class="count">7</div><div class="label">Critical</div></div>
+    <div class="summary-card high"><div class="count">16</div><div class="label">High</div></div>
+    <div class="summary-card medium"><div class="count">19</div><div class="label">Medium</div></div>
+    <div class="summary-card low"><div class="count">11</div><div class="label">Low</div></div>
+  </div>
+
+  <table class="cat-table">
+    <tr><th>Category</th><th style="text-align:center">Critical</th><th style="text-align:center">High</th><th style="text-align:center">Medium</th><th style="text-align:center">Low</th></tr>
+    <tr><td>Security</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="text-align:center">1</td></tr>
+    <tr><td>Architecture</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="text-align:center">4</td><td style="text-align:center">2</td></tr>
+    <tr><td>Data Integrity</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">1</td></tr>
+    <tr><td>Error Handling</td><td style="text-align:center">1</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="text-align:center">2</td></tr>
+    <tr><td>Performance</td><td style="text-align:center">0</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="text-align:center">1</td></tr>
+    <tr><td>Code Quality</td><td style="text-align:center">0</td><td style="text-align:center">2</td><td style="text-align:center">4</td><td style="text-align:center">4</td></tr>
+    <tr class="total-row"><td>Total</td><td style="text-align:center">7</td><td style="text-align:center">16</td><td style="text-align:center">19</td><td style="text-align:center">11</td></tr>
+  </table>
+
+  <div class="corrections">
+    <h4>⚠️ Peer Review Corrections (by Claude)</h4>
+    <p><span class="strike">H17 open redirect</span> → Retracted (false positive). <span class="strike">C7 data.ts</span> → Downgraded to LOW. <span class="strike">H11 fuzzy logic</span> → Downgraded to LOW. <span class="strike">C2 CSRF</span> → Downgraded to MEDIUM (SameSite cookies blunt it).</p>
+  </div>
+  <div class="remediation-status" style="margin-top:16px;padding:14px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;display:flex;gap:20px;flex-wrap:wrap;font-size:13px;align-items:center;">
+    <strong style="color:var(--text);font-size:13px;text-transform:uppercase;letter-spacing:.05em;">Remediation</strong>
+    <span class="status-badge st-fixed">Fixed</span><span style="color:var(--text-muted)">35</span>
+    <span class="status-badge st-resolved">Resolved</span><span style="color:var(--text-muted)">5</span>
+    <span class="status-badge st-deferred">Deferred</span><span style="color:var(--text-muted)">6</span>
+    <span class="status-badge st-notbug">Not a bug</span><span style="color:var(--text-muted)">3</span>
+    <span class="status-badge st-wontfix">Won't fix</span><span style="color:var(--text-muted)">3</span>
+  </div>
+</div>
+
+<!-- CRITICAL ISSUES -->
+<div class="section-header"><h2><span class="severity-pill pill-critical">Critical</span> Must Fix Before Production</h2></div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-critical"></div>
+    <div class="issue-header">
+      <div class="issue-title">C1. Service Role Key Exposed to Client-Side Bundle</div>
+      <div class="issue-meta"><span class="issue-file">src/lib/db/client.ts</span><span class="issue-cat">Security</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>The <strong>db</strong> client uses <strong>SUPABASE_SERVICE_ROLE_KEY</strong> which bypasses ALL Row Level Security. The global singleton pattern combined with Next.js bundling could accidentally expose this to client bundles if any component transitively imports from <strong>@/lib/db/client</strong>.</p>
+    <div class="code-block"><span class="comment">// Line 6: Service role key — bypasses ALL RLS</span>
+<span class="keyword">const</span> key = process.env.<span class="string">SUPABASE_SERVICE_ROLE_KEY</span>;</div>
+    <div class="fix-box">
+      <div class="fix-label">Fix</div>
+      <p>Add <strong>import "server-only"</strong> at the top of the file, or use Next.js's <strong>server-only</strong> package to prevent client-side bundling.</p>
+    </div>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-critical"></div>
+    <div class="issue-header">
+      <div class="issue-title">C3. No Rate Limiting on AI-Powered Endpoints</div>
+      <div class="issue-meta"><span class="issue-file">src/app/api/uploads/[id]/process/route.ts</span><span class="issue-cat">Security / Cost</span></div>
+    </div>
+    <span class="status-badge st-deferred">Deferred</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>The process and scoring endpoints trigger OpenAI API calls with <strong>no rate limiting</strong>. A user could upload hundreds of files and trigger expensive AI scoring, running up massive OpenAI bills.</p>
+    <div class="fix-box">
+      <div class="fix-label">Fix</div>
+      <p>Implement per-academy rate limiting (max 5 scoring runs/hour). Use Upstash Redis rate limiter (already a dependency).</p>
+    </div>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-critical"></div>
+    <div class="issue-header">
+      <div class="issue-title">C4. Path Traversal in File Upload Storage</div>
+      <div class="issue-meta"><span class="issue-file">src/app/api/uploads/route.ts:152</span><span class="issue-cat">Security</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>The <strong>file.name</strong> from user input is used directly in the storage path without sanitization. A crafted filename could cause path traversal.</p>
+    <div class="code-block"><span class="keyword">const</span> storagePath = <span class="string">`${academyId}/${uploadId}/${file.name}`</span>;</div>
+    <div class="fix-box">
+      <div class="fix-label">Fix</div>
+      <p>Sanitize: <strong>file.name.replace(/[^a-zA-Z0-9._-]/g, '_')</strong></p>
+    </div>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-critical"></div>
+    <div class="issue-header">
+      <div class="issue-title">C5. Race Condition in Upload Processing (TOCTOU)</div>
+      <div class="issue-meta"><span class="issue-file">src/app/api/uploads/[id]/process/route.ts</span><span class="issue-cat">Data Integrity</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>Between the status check and the status update, two concurrent requests could both pass the check and start duplicate processing.</p>
+    <div class="fix-box">
+      <div class="fix-label">Fix</div>
+      <p>Use an atomic update: <strong>.update({ status: "PROCESSING" }).eq("status", "MAPPED")</strong> — only one request wins.</p>
+    </div>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-critical"></div>
+    <div class="issue-header">
+      <div class="issue-title">C6. Missing Input Validation on Auth Actions</div>
+      <div class="issue-meta"><span class="issue-file">src/app/(auth)/actions.ts</span><span class="issue-cat">Security</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>Server actions cast form data directly to strings with <strong>as string</strong> — no length, format, or emptiness checks. Empty strings, extremely long strings, and non-email strings are all accepted.</p>
+    <div class="fix-box">
+      <div class="fix-label">Fix</div>
+      <p>Use Zod validation (already a dependency) for all form inputs.</p>
+    </div>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-critical"></div>
+    <div class="issue-header">
+      <div class="issue-title">C8. No Transaction Wrapping for Multi-Step DB Operations</div>
+      <div class="issue-meta"><span class="issue-file">src/lib/imports/process-upload.ts</span><span class="issue-cat">Data Integrity</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>Multiple sequential DB operations (insert students → sessions → payments → update status) with no transaction wrapping. If step 47 of 100 fails, 46 students are partially imported with no rollback.</p>
+    <div class="fix-box">
+      <div class="fix-label">Fix</div>
+      <p>Use Supabase RPC functions for multi-step operations, or implement compensating transactions.</p>
+    </div>
+  </div>
+</div>
+
+<!-- DOWNGRADED -->
+<div class="issue-card retracted" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-retracted"></div>
+    <div class="issue-header">
+      <div class="issue-title"><span class="strikethrough">C7. Hardcoded Fake Data in Production Code</span> — Downgraded to LOW</div>
+      <div class="issue-meta"><span class="issue-file">src/lib/data.ts</span><span class="issue-cat">Cleanup</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <div class="correction-box">
+      <div class="correction-label">Peer Correction</div>
+      <p>Data arrays are <strong>not rendered anywhere</strong>. Avatar.tsx and RiskBadge.tsx import types only. Dead code, not a production leak.</p>
+    </div>
+  </div>
+</div>
+
+<!-- HIGH ISSUES -->
+<div class="section-header"><h2><span class="severity-pill pill-high">High</span> Should Fix Soon</h2></div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-high"></div>
+    <div class="issue-header">
+      <div class="issue-title">H1. Pervasive <code>as any</code> Type Casting (40+ instances)</div>
+      <div class="issue-meta"><span class="issue-file">15+ files</span><span class="issue-cat">Code Quality</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>Every database call uses <strong>(db as any)</strong> with an eslint-disable comment. This completely defeats TypeScript's type safety — real type errors are hidden.</p>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-high"></div>
+    <div class="issue-header">
+      <div class="issue-title">H2. OpenAI Client Singleton Without Error Recovery</div>
+      <div class="issue-meta"><span class="issue-file">src/lib/ai/openai-client.ts</span><span class="issue-cat">Reliability</span></div>
+    </div>
+    <span class="status-badge st-resolved">Resolved</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>Module-level singleton with no retry logic, no timeout, and no circuit breaker. If the API key is rotated or OpenAI has an outage, every request fails with no recovery.</p>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-high"></div>
+    <div class="issue-header">
+      <div class="issue-title">H3. Landing Page Claims Fake Metrics</div>
+      <div class="issue-meta"><span class="issue-file">src/app/page.tsx:61</span><span class="issue-cat">Trust / Legal</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>"<strong>1,200+ tutoring centers</strong>" claimed when the product hasn't launched. Fake testimonial from "Ayesha Yousuf · Bright Future Academy". Legal risk.</p>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-high"></div>
+    <div class="issue-header">
+      <div class="issue-title">H4. Middleware Not Wired — Protected Routes Unprotected</div>
+      <div class="issue-meta"><span class="issue-file">src/proxy.ts</span><span class="issue-cat">Security</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>proxy.ts</strong> has auth middleware logic but is <strong>never called</strong>. There's no <strong>middleware.ts</strong> file. Protected routes rely only on layout-level server checks.</p>
+    <div class="fix-box">
+      <div class="fix-label">Fix</div>
+      <p>Create <strong>src/middleware.ts</strong> that exports the proxy function and config.</p>
+    </div>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-high"></div>
+    <div class="issue-header">
+      <div class="issue-title">H5 & H6. Memory-Bomb Queries — No Pagination</div>
+      <div class="issue-meta"><span class="issue-file">src/lib/dashboard/summary.ts, src/lib/students/risk.ts</span><span class="issue-cat">Performance</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>Dashboard and student list fetch <strong>ALL students with ALL risk assessments and actions</strong> into memory, then filter/sort in JavaScript. A 500-student academy means thousands of rows in memory.</p>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-high"></div>
+    <div class="issue-header">
+      <div class="issue-title">H7. Static Redis Import Crashes Without Env Vars</div>
+      <div class="issue-meta"><span class="issue-file">src/lib/scoring/ai.ts:1</span><span class="issue-cat">Reliability</span></div>
+    </div>
+    <span class="status-badge st-resolved">Resolved</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>Top-level <strong>import { Redis } from "@upstash/redis"</strong> loads the entire library even when env vars are missing. The matching module correctly uses dynamic import.</p>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-high"></div>
+    <div class="issue-header">
+      <div class="issue-title">H12. Payment Status Normalizer Has False Positives</div>
+      <div class="issue-meta"><span class="issue-file">src/lib/scoring/normalizers/paymentStatus.ts</span><span class="issue-cat">Logic Error</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p><strong>"not received"</strong> matches <strong>"received" → paid</strong> (wrong). <strong>"outstanding"</strong> matches both overdue and pending rules. Keyword matching with <strong>.includes()</strong> creates false positives on negations.</p>
+  </div>
+</div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-high"></div>
+    <div class="issue-header">
+      <div class="issue-title">H16. File Size Limit 4MB vs PRD's 10MB</div>
+      <div class="issue-meta"><span class="issue-file">src/app/api/uploads/route.ts:12</span><span class="issue-cat">Product Mismatch</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <p>PRD says 10MB max. Code enforces <strong>4MB</strong>. Real tutoring spreadsheets with 500+ students can easily exceed 4MB.</p>
+  </div>
+</div>
+
+<!-- RETRACTED -->
+<div class="issue-card retracted" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-retracted"></div>
+    <div class="issue-header">
+      <div class="issue-title"><span class="strikethrough">H17. Open Redirect in Auth Callback</span> — FALSE POSITIVE (Retracted)</div>
+      <div class="issue-meta"><span class="issue-file">src/app/auth/callback/route.ts</span><span class="issue-cat">Not a bug</span></div>
+    </div>
+    <span class="status-badge st-notbug">Not a bug</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <div class="correction-box">
+      <div class="correction-label">Peer Correction</div>
+      <p><strong>${origin}${next}</strong> with <strong>next=//evil.com</strong> produces <strong>https://app.com//evil.com</strong> — stays on origin. Not exploitable as written. Reviewer didn't trace the concatenation.</p>
+    </div>
+  </div>
+</div>
+
+<!-- MEDIUM ISSUES -->
+<div class="section-header"><h2><span class="severity-pill pill-medium">Medium</span> Fix Soon</h2></div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-medium"></div>
+    <div class="issue-header">
+      <div class="issue-title">M1–M14. Pagination, Error Formats, Loading States, and More</div>
+      <div class="issue-meta"><span class="issue-file">Multiple files</span><span class="issue-cat">14 issues</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <ul>
+      <li><strong>M1</strong> — No pagination on student/tutor lists</li>
+      <li><strong>M2</strong> — Inconsistent error response format across API routes</li>
+      <li><strong>M3</strong> — Landing page uses inline styles (violates AGENTS.md constraint)</li>
+      <li><strong>M4</strong> — data.ts contains unused mock data</li>
+      <li><strong>M5</strong> — AI normalizer logs as "column_mapping" (wrong feature tag)</li>
+      <li><strong>M6</strong> — No loading.tsx skeleton states for dashboard</li>
+      <li><strong>M7</strong> — Onboarding currency field has no validation</li>
+      <li><strong>M8</strong> — No error.tsx boundary files anywhere</li>
+      <li><strong>M9</strong> — AI scoring silently falls back to rules with no user notification</li>
+      <li><strong>M10</strong> — Fuse.js threshold mismatch (0.4 vs 0.75 confidence bar)</li>
+      <li><strong>M11</strong> — Redis down = cached null forever (no retry TTL)</li>
+      <li><strong>M12</strong> — after() callback has no timeout (hangs forever if OpenAI hangs)</li>
+      <li><strong>M13</strong> — Revenue sums mixed currencies (PKR + USD)</li>
+      <li><strong>M14</strong> — Excel multi-sheet not handled (PRD says "let user pick")</li>
+    </ul>
+  </div>
+</div>
+
+<!-- LOW ISSUES -->
+<div class="section-header"><h2><span class="severity-pill pill-low">Low</span> Fix When Convenient</h2></div>
+
+<div class="issue-card" onclick="this.classList.toggle('open')">
+  <div class="issue-top">
+    <div class="issue-severity-dot dot-low"></div>
+    <div class="issue-header">
+      <div class="issue-title">L1–L10. Cleanup and Polish (11 issues)</div>
+      <div class="issue-meta"><span class="issue-file">Multiple files</span><span class="issue-cat">11 issues</span></div>
+    </div>
+    <span class="status-badge st-fixed">Fixed</span>
+    <div class="issue-arrow">›</div>
+  </div>
+  <div class="issue-body">
+    <ul>
+      <li><strong>L1</strong> — package.json name is "temp-init"</li>
+      <li><strong>L2</strong> — PascalCase tables + camelCase columns (non-standard PostgreSQL)</li>
+      <li><strong>L3</strong> — No .env.example file for new developers</li>
+      <li><strong>L4</strong> — All landing page CTAs link to /dashboard</li>
+      <li><strong>L5</strong> — Footer links are all dead (#)</li>
+      <li><strong>L6</strong> — next.config.ts is empty (no security headers)</li>
+      <li><strong>L7</strong> — Trust section has fabricated company names</li>
+      <li><strong>L8</strong> — No robots.txt or sitemap.xml</li>
+      <li><strong>L9</strong> — CLAUDE.md and .claude/ still in repo</li>
+      <li><strong>L10</strong> — Tutor table not in database types</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ARCHITECTURE -->
+<div class="section-header"><h2>Architecture Issues (Vibe Code Patterns)</h2></div>
+
+<div class="arch-card">
+  <h3>A1. Two Parallel Scoring Pipelines<span class="status-badge st-fixed" style="margin-left:8px">Fixed</span></h3>
+  <p>The codebase has TWO separate scoring paths — the old one is referenced as "currently a dead path" in comments but still exists, creating confusion about which code is actually in use.</p>
+  <ul>
+    <li><strong>Old:</strong> src/lib/scoring/process-upload.ts → processMappedUpload</li>
+    <li><strong>New:</strong> src/lib/imports/process-upload.ts → processStructuredUpload</li>
+  </ul>
+</div>
+
+<div class="arch-card">
+  <h3>A2. PRD Mismatches Reality<span class="status-badge st-wontfix" style="margin-left:8px">Won't fix</span></h3>
+  <ul>
+    <li>PRD: Next.js 15 + Prisma + NextAuth → Reality: Next.js 16 + Supabase</li>
+    <li>PRD: 10MB upload limit → Code: 4MB</li>
+    <li>PRD: shadcn/ui → No shadcn components found</li>
+    <li>PRD: React Hook Form, TanStack Table → Not used</li>
+  </ul>
+</div>
+
+<div class="arch-card">
+  <h3>A3. No Test Coverage for Critical Paths<span class="status-badge st-deferred" style="margin-left:8px">Deferred</span></h3>
+  <p>Tests only cover scoring normalizers and utilities. Zero tests for API routes, auth flows, upload processing, student matching, or dashboard queries.</p>
+</div>
+
+<!-- VERDICT -->
+<div class="verdict-section">
+  <div class="verdict-card">
+    <h2>Final Verdict</h2>
+    <p style="color:#c4b5fd; margin-bottom:16px;">This app is <strong style="color:#e0e7ff">vibe coded</strong>. Built rapidly with AI agents, it demonstrates the classic pattern:</p>
+    <ol>
+      <li><strong>Works for the happy path</strong> — core flow (upload → map → score → display) functions</li>
+      <li><strong>Breaks under edge cases</strong> — race conditions, error handling, security are afterthoughts</li>
+      <li><strong>Type safety is an illusion</strong> — 40+ <code>as any</code> casts</li>
+      <li><strong>Architecture evolved organically</strong> — two scoring pipelines, dead code</li>
+      <li><strong>Security is surface-level</strong> — auth checks exist but rate limiting and input validation missing</li>
+      <li><strong>No testing discipline</strong> — critical paths have zero coverage</li>
+    </ol>
+    <p style="color:#c4b5fd; margin-top:20px;"><strong style="color:#e0e7ff">Before production:</strong> Security audit, consolidate pipelines, remove <code>as any</code>, add tests, error boundaries, align PRD with reality.</p>
+  </div>
+</div>
+
+<div class="report-footer">Report generated by senior code review · 2026-05-29 · Peer-corrected by Claude</div>
+
+</div><!-- /container -->
+
+<script>
+// Open the first critical issue by default
+document.querySelector('.issue-card')?.classList.add('open');
+</script>
+</body>
+</html>
