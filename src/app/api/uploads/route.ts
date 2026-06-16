@@ -94,13 +94,24 @@ export async function POST(req: NextRequest) {
 
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
+  const requestedSheet = String(formData.get("sheet") ?? "").trim() || undefined;
 
   let parsed;
   try {
-    parsed = await parseFile(buffer, file.name);
+    parsed = await parseFile(buffer, file.name, { sheet: requestedSheet });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Parse error";
     return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  // Multi-sheet workbook and no sheet chosen yet — ask the user to pick one
+  // before anything is stored. The client re-posts with a `sheet` field.
+  if (parsed.sheetNames && parsed.sheetNames.length > 1) {
+    return NextResponse.json({
+      needsSheetSelection: true,
+      sheets: parsed.sheetNames,
+      fileName: file.name,
+    });
   }
 
   const detection = detectImportFormat(entityType, parsed.headers);

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Building2, Globe, DollarSign, ArrowRight, Loader2 } from "lucide-react";
@@ -8,9 +8,16 @@ import countries from "world-countries";
 const countryOptions = countries
   .map((item) => ({
     name: item.name.common,
+    code: item.cca2,
     currency: Object.keys(item.currencies ?? {})[0] ?? "USD",
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
+
+function localeCountryCode(): string | null {
+  const locale = navigator.languages?.[0] ?? navigator.language;
+  const region = new Intl.Locale(locale).region;
+  return region && /^[A-Z]{2}$/.test(region) ? region : null;
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -21,11 +28,36 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [currencyError, setCurrencyError] = useState<string | null>(null);
 
+  const userPicked = useRef(false);
+
   function handleCountryChange(val: string) {
+    userPicked.current = true;
     const selected = countryOptions.find((item) => item.name === val);
     setCountry(val);
     setCurrency(selected?.currency ?? "USD");
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    function prefill(code: string | null) {
+      if (cancelled || userPicked.current || !code) return;
+      const match = countryOptions.find((item) => item.code === code);
+      if (match) {
+        setCountry(match.name);
+        setCurrency(match.currency);
+      }
+    }
+
+    fetch("/api/geo", { signal: AbortSignal.timeout(5000) })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => prefill(data?.country ?? localeCountryCode()))
+      .catch(() => prefill(localeCountryCode()));
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

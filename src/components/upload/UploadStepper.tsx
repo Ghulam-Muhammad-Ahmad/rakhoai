@@ -3,77 +3,72 @@
 import { CheckIcon } from "lucide-react";
 
 const STEPS = [
-  { label: "Choose data type", key: "upload" },
-  { label: "Upload file", key: "file" },
-  { label: "Format detected", key: "detect" },
-  { label: "Choose identifier", key: "identifier" },
-  { label: "Map columns", key: "map" },
-  { label: "Review rows", key: "normalize" },
-  { label: "Import", key: "confirm" },
-  { label: "Receipt", key: "next" },
+  // each step accepts the legacy keys pages already pass
+  { label: "Upload", keys: ["upload", "file", "detect", "identifier"] },
+  { label: "Map columns", keys: ["map"] },
+  { label: "Review rows", keys: ["normalize"] },
+  { label: "Import", keys: ["confirm", "next"] },
 ] as const;
 
-type UploadStep = (typeof STEPS)[number]["key"];
+type UploadStep = (typeof STEPS)[number]["keys"][number];
 
 export function UploadStepper({ currentStep }: { currentStep: UploadStep }) {
-  const currentIndex = STEPS.findIndex((s) => s.key === currentStep);
+  const currentIndex = STEPS.findIndex((s) => (s.keys as readonly string[]).includes(currentStep));
+  // "next" is the receipt state — show the final step as completed
+  const lastDone = currentStep === "next";
 
   return (
     <div
       style={{
         marginBottom: 28,
         overflowX: "auto",
-        padding: "12px 16px",
+        padding: "16px 18px",
         border: "1px solid var(--neutral-200)",
         borderRadius: 12,
         background: "#fff",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 480 }}>
         {STEPS.map((step, i) => {
-          const done = i < currentIndex;
-          const active = i === currentIndex;
+          const done = i < currentIndex || (lastDone && i === currentIndex);
+          const active = i === currentIndex && !done;
 
           return (
             <div
-              key={step.key}
+              key={step.label}
               style={{ display: "flex", alignItems: "center", flex: i < STEPS.length - 1 ? 1 : "none" }}
             >
-              <div
-                title={step.label}
-                style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <div
                   style={{
-                    width: active ? 24 : 20,
-                    height: active ? 24 : 20,
+                    width: 26,
+                    height: 26,
                     borderRadius: "50%",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
                     flexShrink: 0,
                     background: done || active ? "#0F766E" : "var(--neutral-100)",
                     color: done || active ? "#fff" : "var(--neutral-500)",
                     boxShadow: active ? "0 0 0 4px rgba(15,118,110,0.14)" : "none",
-                    transition: "all 0.15s",
+                    transition: "background 0.15s, box-shadow 0.15s",
                   }}
                 >
-                  {done ? <CheckIcon size={12} color="#fff" /> : i + 1}
+                  {done ? <CheckIcon size={15} color="#fff" /> : i + 1}
                 </div>
-                {active && (
-                  <span
-                    style={{
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      color: "var(--neutral-900)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {step.label}
-                  </span>
-                )}
+                <span
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: active ? 600 : 500,
+                    color: active ? "var(--neutral-900)" : done ? "#0F766E" : "var(--neutral-400)",
+                    whiteSpace: "nowrap",
+                    transition: "color 0.15s",
+                  }}
+                >
+                  {step.label}
+                </span>
               </div>
               {i < STEPS.length - 1 && (
                 <div
@@ -82,8 +77,7 @@ export function UploadStepper({ currentStep }: { currentStep: UploadStep }) {
                     height: 2,
                     borderRadius: 2,
                     background: done ? "#0F766E" : "var(--neutral-200)",
-                    margin: "0 8px",
-                    minWidth: 12,
+                    margin: "0 10px",
                     transition: "background 0.15s",
                   }}
                 />

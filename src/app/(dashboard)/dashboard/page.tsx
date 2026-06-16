@@ -13,6 +13,7 @@ import { getStudentRiskList } from "@/lib/students/risk";
 import { getCurrencySymbol } from "@/lib/currency";
 import Image from "next/image";
 import { RiskScoringButton } from "@/components/dashboard/RiskScoringButton";
+import { LoadDemoDataButton } from "@/components/dashboard/LoadDemoDataButton";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -41,6 +42,9 @@ export default async function DashboardPage() {
     .eq("academyId", dbUser.academy.id)
     .eq("status", "PROCESSED")
     .order("processedAt", { ascending: false });
+
+  const { academyHasDemoData } = await import("@/lib/demo/seed");
+  const hasDemoData = await academyHasDemoData(dbUser.academy.id);
 
   const summary = await getDashboardSummary(dbUser.academy.id);
   const charts = await getDashboardCharts(dbUser.academy.id);
@@ -126,9 +130,13 @@ export default async function DashboardPage() {
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-          <Link href="/uploads/new" style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: lastUpload ? "1px solid var(--neutral-200)" : "none", background: lastUpload ? "#fff" : "var(--primary-500)", color: lastUpload ? "var(--neutral-700)" : "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-            {lastUpload ? <><RefreshCw size={14} /> Update data</> : "Upload data"}
-          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {summary.totalStudents === 0 && <LoadDemoDataButton mode="load" />}
+            {hasDemoData && <LoadDemoDataButton mode="remove" />}
+            <Link href="/uploads/new" style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: lastUpload ? "1px solid var(--neutral-200)" : "none", background: lastUpload ? "#fff" : "var(--primary-500)", color: lastUpload ? "var(--neutral-700)" : "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+              {lastUpload ? <><RefreshCw size={14} /> Update data</> : "Upload data"}
+            </Link>
+          </div>
           {lastUpload?.processedAt && (
             <div style={{ fontSize: 12, color: "var(--neutral-400)", textAlign: "right" }}>
               Last updated {new Date(lastUpload.processedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}

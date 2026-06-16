@@ -3,8 +3,9 @@
 import { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
-import { Upload, FileText, AlertCircle, CheckCircle, X, HelpCircle, Loader2, Users, GraduationCap, CalendarCheck, CreditCard } from "lucide-react";
+import { Upload, FileText, AlertCircle, CheckCircle, X, HelpCircle, Loader2, Users, GraduationCap, CalendarCheck, CreditCard, ChevronDown, Check, Layers } from "lucide-react";
 import { UploadStepper } from "@/components/upload/UploadStepper";
+import { LoadDemoDataButton } from "@/components/dashboard/LoadDemoDataButton";
 import type { EntityType } from "@/lib/imports/types";
 
 const REQUIRED_COLS = [
@@ -266,7 +267,7 @@ const ENTITY_OPTIONS: {
   { value: "payments", label: "Payments", desc: "Fee transactions and overdue signals. Requires students first.", icon: CreditCard },
 ];
 
-type State = "checking" | "idle" | "uploading" | "preview" | "error" | "blocked_job";
+type State = "checking" | "idle" | "uploading" | "sheet_select" | "preview" | "error" | "blocked_job";
 
 export default function UploadNewPage() {
   const router = useRouter();
@@ -277,6 +278,18 @@ export default function UploadNewPage() {
   const [activeJobFile, setActiveJobFile] = useState<string>("");
   const [navigating, setNavigating] = useState(false);
   const [entityType, setEntityType] = useState<EntityType>("students");
+  const [academyEmpty, setAcademyEmpty] = useState(false);
+  const [sheetSelect, setSheetSelect] = useState<{ file: File; sheets: string[] } | null>(null);
+  const [chosenSheet, setChosenSheet] = useState<string>("");
+  const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
+
+  // Offer demo data only while the academy has no students at all.
+  useEffect(() => {
+    fetch("/api/academy/has-data")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setAcademyEmpty(data ? !data.hasStudents : false))
+      .catch(() => setAcademyEmpty(false));
+  }, []);
 
   // Preselect the entity when arriving from an "Add attendance/fees" link.
   useEffect(() => {
@@ -300,16 +313,14 @@ export default function UploadNewPage() {
       .catch(() => setState("idle"));
   }, []);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
-
+  const uploadFile = useCallback(async (file: File, sheet?: string) => {
     setState("uploading");
     setErrorMsg("");
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("entityType", entityType);
+    if (sheet) formData.append("sheet", sheet);
 
     try {
       const res = await fetch("/api/uploads", {
@@ -330,6 +341,15 @@ export default function UploadNewPage() {
         return;
       }
 
+      // Workbook has multiple sheets — let the user pick one, then re-post.
+      if (data.needsSheetSelection) {
+        setSheetSelect({ file, sheets: data.sheets as string[] });
+        setChosenSheet((data.sheets as string[])[0] ?? "");
+        setSheetDropdownOpen(false);
+        setState("sheet_select");
+        return;
+      }
+
       setPreview(data);
       setState("preview");
     } catch {
@@ -337,6 +357,12 @@ export default function UploadNewPage() {
       setState("error");
     }
   }, [entityType]);
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+    await uploadFile(file);
+  }, [uploadFile]);
 
   const { getRootProps, getInputProps, isDragActive, fileRejections } =
     useDropzone({
@@ -408,19 +434,22 @@ export default function UploadNewPage() {
             Start with students, then add sessions and payments when you have them.
           </p>
         </div>
-        <button
-          onClick={() => setShowGuide(true)}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            fontSize: 13, fontWeight: 500, color: "var(--primary-600, #0F766E)",
-            background: "var(--primary-50, #f0fdfa)", border: "1px solid var(--primary-100, #ccfbf1)",
-            borderRadius: "var(--radius-md)", padding: "7px 12px", cursor: "pointer",
-            whiteSpace: "nowrap", marginTop: 4,
-          }}
-        >
-          <HelpCircle size={14} />
-          How to prepare your file
-        </button>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 4 }}>
+          {academyEmpty && <LoadDemoDataButton mode="load" redirectTo="/dashboard" size="sm" />}
+          <button
+            onClick={() => setShowGuide(true)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              fontSize: 13, fontWeight: 500, color: "var(--primary-600, #0F766E)",
+              background: "var(--primary-50, #f0fdfa)", border: "1px solid var(--primary-100, #ccfbf1)",
+              borderRadius: "var(--radius-md)", padding: "7px 12px", cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <HelpCircle size={14} />
+            How to prepare your file
+          </button>
+        </div>
       </div>}
 
       {state !== "blocked_job" && state !== "checking" && <>
@@ -580,6 +609,168 @@ export default function UploadNewPage() {
             Parsing your file…
           </p>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      {/* Sheet selection — workbook has more than one sheet */}
+      {state === "sheet_select" && sheetSelect && (
+        <div
+          style={{
+            border: "1px solid var(--neutral-200)",
+            borderRadius: "var(--radius-lg, 12px)",
+            background: "#fff",
+            padding: "32px",
+            maxWidth: 520,
+            margin: "0 auto",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 20 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: "var(--primary-50, #F0FDFA)", border: "1px solid var(--primary-100, #CCFBF1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Layers size={20} color="#0F766E" />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--neutral-900)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {sheetSelect.file.name}
+              </div>
+              <p style={{ fontSize: 13, color: "var(--neutral-500)", margin: "3px 0 0", lineHeight: 1.5 }}>
+                This workbook has {sheetSelect.sheets.length} sheets. Pick the one to import — you can upload the others separately afterwards.
+              </p>
+            </div>
+          </div>
+
+          {/* Sheet dropdown */}
+          <div style={{ position: "relative", marginBottom: 18 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--neutral-600)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+              Sheet to import
+            </div>
+            <button
+              type="button"
+              onClick={() => setSheetDropdownOpen((open) => !open)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                fontSize: 14,
+                fontWeight: 500,
+                padding: "11px 14px",
+                borderRadius: "var(--radius-md)",
+                border: `1px solid ${sheetDropdownOpen ? "#0F766E" : "var(--neutral-200)"}`,
+                boxShadow: sheetDropdownOpen ? "0 0 0 3px rgba(15,118,110,0.12)" : "none",
+                background: "#fff",
+                color: "var(--neutral-900)",
+                cursor: "pointer",
+                transition: "border-color 0.15s, box-shadow 0.15s",
+              }}
+            >
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                <FileText size={15} color="#0F766E" style={{ flexShrink: 0 }} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chosenSheet}</span>
+              </span>
+              <ChevronDown
+                size={16}
+                color="var(--neutral-400)"
+                style={{ flexShrink: 0, transform: sheetDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+              />
+            </button>
+
+            {sheetDropdownOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  left: 0,
+                  right: 0,
+                  zIndex: 50,
+                  background: "#fff",
+                  border: "1px solid var(--neutral-200)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "0 8px 24px rgba(15,23,42,0.12)",
+                  overflow: "hidden",
+                  maxHeight: 240,
+                  overflowY: "auto",
+                }}
+              >
+                {sheetSelect.sheets.map((name) => {
+                  const selected = name === chosenSheet;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => { setChosenSheet(name); setSheetDropdownOpen(false); }}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        fontSize: 13.5,
+                        fontWeight: selected ? 600 : 500,
+                        padding: "10px 14px",
+                        border: "none",
+                        background: selected ? "var(--primary-50, #F0FDFA)" : "#fff",
+                        color: selected ? "#0F766E" : "var(--neutral-800)",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                      onMouseEnter={(e) => { if (!selected) e.currentTarget.style.background = "var(--neutral-50, #FAFAF9)"; }}
+                      onMouseLeave={(e) => { if (!selected) e.currentTarget.style.background = "#fff"; }}
+                    >
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                        <FileText size={14} color={selected ? "#0F766E" : "var(--neutral-400)"} style={{ flexShrink: 0 }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+                      </span>
+                      {selected && <Check size={15} color="#0F766E" style={{ flexShrink: 0 }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => uploadFile(sheetSelect.file, chosenSheet)}
+              disabled={!chosenSheet}
+              style={{
+                flex: 1,
+                fontSize: 14,
+                fontWeight: 600,
+                padding: "11px 18px",
+                borderRadius: "var(--radius-md)",
+                border: "none",
+                background: "var(--primary-500)",
+                color: "#fff",
+                cursor: chosenSheet ? "pointer" : "not-allowed",
+                opacity: chosenSheet ? 1 : 0.6,
+              }}
+            >
+              Import this sheet →
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSheetSelect(null); setSheetDropdownOpen(false); setState("idle"); }}
+              style={{
+                fontSize: 13.5,
+                fontWeight: 500,
+                padding: "11px 16px",
+                borderRadius: "var(--radius-md)",
+                border: "1px solid var(--neutral-200)",
+                background: "#fff",
+                color: "var(--neutral-600)",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <X size={13} />
+              Different file
+            </button>
+          </div>
         </div>
       )}
 
