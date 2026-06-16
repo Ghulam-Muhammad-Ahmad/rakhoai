@@ -107,59 +107,61 @@ export async function runMapping(
     needsAi.push({ column: col, samples, idx: i });
   }
 
-  // Layer 3 — AI sees everything: unmatched columns + already-mapped for verification
-  const alreadyMapped = results
-    .filter((r) => r.suggestedField && (r.layer === "exact" || r.layer === "fuzzy"))
-    .map((r) => ({
-      column: r.sourceColumn,
-      field: r.suggestedField as string,
-      layer: r.layer as "exact" | "fuzzy",
-      samples: r.sampleValues,
-    }));
+  if (needsAi.length > 0) {
+    // Layer 3 — AI sees everything: unmatched columns + already-mapped for verification
+    const alreadyMapped = results
+      .filter((r) => r.suggestedField && (r.layer === "exact" || r.layer === "fuzzy"))
+      .map((r) => ({
+        column: r.sourceColumn,
+        field: r.suggestedField as string,
+        layer: r.layer as "exact" | "fuzzy",
+        samples: r.sampleValues,
+      }));
 
-  const aiResults = await aiMatch(
-    needsAi.map(({ column, samples }) => ({ column, samples })),
-    uploadId,
-    alreadyMapped,
-    entityType
-  );
+    const aiResults = await aiMatch(
+      needsAi.map(({ column, samples }) => ({ column, samples })),
+      uploadId,
+      alreadyMapped,
+      entityType
+    );
 
-  // Apply AI results for previously-unmapped columns
-  for (const { column, idx } of needsAi) {
-    const ai = aiResults[column];
-    if (ai && ai.field && allowedFields.includes(ai.field) && ai.confidence >= 0.5) {
-      results[idx] = {
-        ...results[idx],
-        suggestedField: ai.field,
-        confidence: ai.confidence,
-        layer: "ai",
-      };
-    }
-  }
-
-  // Apply AI corrections to already-mapped columns
-  // Rule: AI can correct or demote FUZZY matches only. Exact matches are trusted — AI can only confirm them.
-  for (const { column, layer } of alreadyMapped) {
-    const ai = aiResults[column];
-    if (!ai) continue;
-    const idx = results.findIndex((r) => r.sourceColumn === column);
-    if (idx === -1) continue;
-
-    if (layer === "exact") {
-      // Exact match — AI confirmation only, never override
-      if (ai.field === results[idx].suggestedField) {
-        results[idx] = { ...results[idx], confidence: Math.min(1.0, results[idx].confidence + 0.02) };
+    // Apply AI results for previously-unmapped columns
+    for (const { column, idx } of needsAi) {
+      const ai = aiResults[column];
+      if (ai && ai.field && allowedFields.includes(ai.field) && ai.confidence >= 0.5) {
+        results[idx] = {
+          ...results[idx],
+          suggestedField: ai.field,
+          confidence: ai.confidence,
+          layer: "ai",
+        };
       }
-      // AI disagrees with exact → ignore, keep exact as-is
-    } else {
-      // Fuzzy match — AI can correct or demote
-      if (ai.field === null || !allowedFields.includes(ai.field)) {
-        results[idx] = { ...results[idx], suggestedField: null, confidence: 0, layer: "unmapped" };
-      } else if (ai.field !== results[idx].suggestedField) {
-        results[idx] = { ...results[idx], suggestedField: ai.field, confidence: ai.confidence, layer: "ai" };
+    }
+
+    // Apply AI corrections to already-mapped columns
+    // Rule: AI can correct or demote FUZZY matches only. Exact matches are trusted — AI can only confirm them.
+    for (const { column, layer } of alreadyMapped) {
+      const ai = aiResults[column];
+      if (!ai) continue;
+      const idx = results.findIndex((r) => r.sourceColumn === column);
+      if (idx === -1) continue;
+
+      if (layer === "exact") {
+        // Exact match — AI confirmation only, never override
+        if (ai.field === results[idx].suggestedField) {
+          results[idx] = { ...results[idx], confidence: Math.min(1.0, results[idx].confidence + 0.02) };
+        }
+        // AI disagrees with exact → ignore, keep exact as-is
       } else {
-        // AI confirmed fuzzy — boost confidence slightly
-        results[idx] = { ...results[idx], confidence: Math.min(1.0, results[idx].confidence + 0.05) };
+        // Fuzzy match — AI can correct or demote
+        if (ai.field === null || !allowedFields.includes(ai.field)) {
+          results[idx] = { ...results[idx], suggestedField: null, confidence: 0, layer: "unmapped" };
+        } else if (ai.field !== results[idx].suggestedField) {
+          results[idx] = { ...results[idx], suggestedField: ai.field, confidence: ai.confidence, layer: "ai" };
+        } else {
+          // AI confirmed fuzzy — boost confidence slightly
+          results[idx] = { ...results[idx], confidence: Math.min(1.0, results[idx].confidence + 0.05) };
+        }
       }
     }
   }

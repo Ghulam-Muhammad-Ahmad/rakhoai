@@ -21,26 +21,55 @@ function getAdminStorageClient() {
 }
 
 async function getOrCreateOpenImportSet(academyId: string) {
+  // Completed status — all four entity columns at 'imported' means the set is done.
+  // We only reuse a set that has NOT reached the terminal 'imported' state on every
+  // entity column, i.e. at least one column is still open (missing/uploaded/mapped/
+  // reviewed/failed).  The simplest server-side proxy: exclude sets where every
+  // column is 'imported'.  We achieve this by filtering out rows where all four
+  // status columns equal 'imported'.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: existing } = await (db as any)
     .from("ImportSet")
-    .select("id")
+    .select("id, studentsStatus, teachersStatus, sessionsStatus, paymentsStatus")
     .eq("academyId", academyId)
     .order("createdAt", { ascending: false })
     .limit(1)
-    .maybeSingle() as { data: { id: string } | null };
+    .maybeSingle() as { data: { id: string; studentsStatus: string; teachersStatus: string; sessionsStatus: string; paymentsStatus: string } | null };
 
-  if (existing) return existing.id;
+  // FIX 4: only reuse if the set is not fully completed (i.e. not all four entities imported)
+  if (existing) {
+    const isCompleted =
+      existing.studentsStatus === "imported" &&
+      existing.teachersStatus === "imported" &&
+      existing.sessionsStatus === "imported" &&
+      existing.paymentsStatus === "imported";
+    if (!isCompleted) return existing.id;
+    // The most recent set is completed — fall through to create a new one
+  }
 
   const id = crypto.randomUUID();
+  // FIX 5: handle race condition — if INSERT fails due to a concurrent request that
+  // already created an open set, retry the SELECT once before throwing.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (db as any).from("ImportSet").insert({
+  const { data: inserted, error: insertError } = await (db as any).from("ImportSet").insert({
     id,
     academyId,
     name: `Import set ${new Date().toISOString().slice(0, 10)}`,
-  }) as { error: { message: string } | null };
-  if (error) throw new Error(`Failed to create import set: ${error.message}`);
-  return id;
+  }).select("id").single() as { data: { id: string } | null; error: { message: string } | null };
+  if (insertError) {
+    // Race: another concurrent request created an open set — fetch it now
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: retry } = await (db as any)
+      .from("ImportSet")
+      .select("id")
+      .eq("academyId", academyId)
+      .order("createdAt", { ascending: false })
+      .limit(1)
+      .single() as { data: { id: string } | null };
+    if (retry) return retry.id;
+    throw new Error(`Failed to create import set: ${insertError.message}`);
+  }
+  return inserted!.id;
 }
 
 export async function POST(req: NextRequest) {

@@ -26,7 +26,11 @@ function sourceByField(mappings: MappingResult[]) {
 
 function get(row: Record<string, unknown>, sources: Map<string, string>, field: string) {
   const source = sources.get(field);
-  return source ? row[source] : null;
+  if (!source) return null;
+  if (source.includes(" + ")) {
+    return source.split(" + ").map((col) => String(row[col.trim()] ?? "").trim()).filter(Boolean).join(" ") || null;
+  }
+  return row[source];
 }
 
 function stringOrNull(value: unknown): string | null {
@@ -483,60 +487,75 @@ export async function processStructuredUpload(
     .single();
   if (error || !upload || upload.academyId !== academyId) throw new Error("Upload not found");
 
-  const entityType = (upload.entityType ?? "students") as EntityType;
-  const rows = (upload.rawRowsJson as Record<string, unknown>[] | null) ?? [];
-  const mappings = (upload.mappingJson as MappingResult[] | null) ?? [];
-  const importSetId = upload.importSetId as string | null;
-
-  let summary: ImportReviewSummary;
-  if (entityType === "students") {
-    if (mode === "replace") {
-      await clearStudentDataForAcademy(academyId);
-    }
-    summary = await importStudents({ academyId, uploadId, rows, mappings });
-  } else if (entityType === "teachers") {
-    summary = await importTeachers({ academyId, rows, mappings });
-  } else {
-    const identifier = upload.identifierJson as IdentifierSelection | null;
-    if (!identifier) throw new Error("Student Identifier is required for sessions and payments");
-
-    const sources = sourceByField(mappings);
-    const aggregateSessions = entityType === "sessions" && sessionsAreAggregate(sources);
-
-    if (mode === "replace" && !aggregateSessions) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let deleteQuery = (db as any).from(entityType === "sessions" ? "Session" : "Payment").delete().eq("academyId", academyId);
-      deleteQuery = importSetId ? deleteQuery.eq("importSetId", importSetId) : deleteQuery.eq("uploadId", uploadId);
-      await deleteQuery;
-    }
-
-    if (aggregateSessions) {
-      // Aggregate attendance is written straight to Student; no Session rows,
-      // so we deliberately skip the per-event summary sync.
-      summary = await importAggregateSessions({ academyId, uploadId, rows, mappings, identifier });
-    } else {
-      summary = await importSessionsOrPayments({
-        academyId,
-        uploadId,
-        importSetId,
-        entityType,
-        rows,
-        mappings,
-        identifier,
-      });
-      await syncStructuredStudentSummaries(academyId);
-    }
-  }
-
-  const status = summary.unmatchedRows > 0 || summary.lowConfidenceRows > 0 ? "reviewed" : "imported";
-  await updateImportSetStatus(importSetId, entityType, status);
+  // Mark as PROCESSING to prevent concurrent re-runs and surface progress to the user.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (db as any).from("Upload").update({
-    status: "PROCESSED",
-    reviewJson: summary as unknown as Json,
-    processedAt: new Date().toISOString(),
-    rowCount: summary.readyRows,
-  }).eq("id", uploadId);
+  await (db as any).from("Upload").update({ status: "PROCESSING", updatedAt: new Date().toISOString() }).eq("id", uploadId);
 
-  return { status, summary };
+  try {
+    const entityType = (upload.entityType ?? "students") as EntityType;
+    const rows = (upload.rawRowsJson as Record<string, unknown>[] | null) ?? [];
+    const mappings = (upload.mappingJson as MappingResult[] | null) ?? [];
+    const importSetId = upload.importSetId as string | null;
+
+    let summary: ImportReviewSummary;
+    if (entityType === "students") {
+      if (mode === "replace") {
+        await clearStudentDataForAcademy(academyId);
+      }
+      summary = await importStudents({ academyId, uploadId, rows, mappings });
+    } else if (entityType === "teachers") {
+      summary = await importTeachers({ academyId, rows, mappings });
+    } else {
+      const identifier = upload.identifierJson as IdentifierSelection | null;
+      if (!identifier) throw new Error("Student Identifier is required for sessions and payments");
+
+      const sources = sourceByField(mappings);
+      const aggregateSessions = entityType === "sessions" && sessionsAreAggregate(sources);
+
+      if (mode === "replace" && !aggregateSessions) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let deleteQuery = (db as any).from(entityType === "sessions" ? "Session" : "Payment").delete().eq("academyId", academyId);
+        deleteQuery = importSetId ? deleteQuery.eq("importSetId", importSetId) : deleteQuery.eq("uploadId", uploadId);
+        const { error: deleteError } = await deleteQuery;
+        if (deleteError) throw new Error("Bulk delete failed: " + deleteError.message);
+      }
+
+      if (aggregateSessions) {
+        // Aggregate attendance is written straight to Student; no Session rows,
+        // so we deliberately skip the per-event summary sync.
+        summary = await importAggregateSessions({ academyId, uploadId, rows, mappings, identifier });
+      } else {
+        summary = await importSessionsOrPayments({
+          academyId,
+          uploadId,
+          importSetId,
+          entityType,
+          rows,
+          mappings,
+          identifier,
+        });
+        await syncStructuredStudentSummaries(academyId);
+      }
+    }
+
+    const status = summary.unmatchedRows > 0 || summary.lowConfidenceRows > 0 ? "reviewed" : "imported";
+    await updateImportSetStatus(importSetId, entityType, status);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).from("Upload").update({
+      status: "PROCESSED",
+      reviewJson: summary as unknown as Json,
+      processedAt: new Date().toISOString(),
+      rowCount: summary.readyRows,
+    }).eq("id", uploadId);
+
+    return { status, summary };
+  } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).from("Upload").update({
+      status: "FAILED",
+      errorMessage: err instanceof Error ? err.message : String(err),
+      updatedAt: new Date().toISOString(),
+    }).eq("id", uploadId);
+    throw err;
+  }
 }

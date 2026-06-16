@@ -89,6 +89,16 @@ export async function POST(_req: NextRequest, { params }: Params) {
     ? (defaultTemplate.mappingJson as Record<string, string | null>)
     : null;
 
+  // Migrate legacy 'contact_info' field in saved templates. Before the schema split,
+  // a single 'contact_info' field covered both email and phone. Templates saved under
+  // the old schema would be silently dropped by runMapping (not in allowedFields).
+  // Default to 'email' as the safer/more common case.
+  if (templateMap) {
+    for (const col of Object.keys(templateMap)) {
+      if (templateMap[col] === 'contact_info') templateMap[col] = 'email'
+    }
+  }
+
   const entityType = (upload.entityType ?? "students") as EntityType;
   const mappings = await runMapping(headers, sampleRows, upload.id, templateMap, entityType);
 

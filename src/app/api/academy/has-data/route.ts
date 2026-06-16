@@ -11,10 +11,12 @@ export async function GET(_req: NextRequest) {
   const academyId = await getAcademyIdForSupabaseUser(user.id);
   if (!academyId) return NextResponse.json({ error: "Academy not found" }, { status: 404 });
 
-  const { count } = await db
+  const { count, error } = await db
     .from("Student")
     .select("id", { count: "exact", head: true })
     .eq("academyId", academyId);
+
+  if (error) return NextResponse.json({ error: "DB error" }, { status: 500 });
 
   const { data: lastUpload } = await db
     .from("Upload")
