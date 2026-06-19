@@ -170,16 +170,5 @@ export async function runStructuredRiskScoring(academyId: string, uploadId: stri
     confidenceCounts,
     scoredAt,
     warnings,
-    // Backward-compatible aliases for any older callers.
-    scored: studentsScored,
-    sessions: sessionRows.length,
-    payments: paymentRows.length,
-    confidence: latestDataAt ? getStructuredRiskConfidence({
-      hasStudentIdentifier: true,
-      hasSessions: true,
-      hasPayments: true,
-      latestDataAt,
-      now,
-    }).level : "low",
   };
 }

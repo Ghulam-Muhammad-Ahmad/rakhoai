@@ -27,7 +27,7 @@ function resolveModel(requested?: string): string | undefined {
 export async function createLoggedChatCompletion(args: {
   academyId?: string | null;
   uploadId?: string | null;
-  feature: "column_mapping" | "risk_scoring" | "normalization";
+  feature: "column_mapping" | "normalization";
   model: string;
   payloadForHash: unknown;
   request: Omit<ChatCompletionCreateParamsNonStreaming, "model"> & { model?: string };

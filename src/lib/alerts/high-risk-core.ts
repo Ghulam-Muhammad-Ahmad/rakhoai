@@ -14,10 +14,6 @@ export function shouldQueueHighRiskAlert(risk: AlertRiskInput): boolean {
   return risk.riskBand === "HIGH";
 }
 
-export function getQueuedHighRiskAlertStatus(): "QUEUED" {
-  return "QUEUED";
-}
-
 export function buildHighRiskEmailAlert(input: HighRiskEmailAlertInput) {
   const reasons = input.reasons.length
     ? input.reasons.map((reason) => `- ${reason}`).join("\n")

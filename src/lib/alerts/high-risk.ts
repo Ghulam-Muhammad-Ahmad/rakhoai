@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { db } from "@/lib/db/client";
 import type { Database, Json } from "@/lib/db/database.types";
-import { buildHighRiskEmailAlert, getQueuedHighRiskAlertStatus, shouldQueueHighRiskAlert } from "./high-risk-core";
+import { buildHighRiskEmailAlert, shouldQueueHighRiskAlert } from "./high-risk-core";
 
 type RiskAssessmentRow = Database["public"]["Tables"]["RiskAssessment"]["Row"];
 type StudentRow = Database["public"]["Tables"]["Student"]["Row"];
@@ -56,7 +56,7 @@ export async function queueHighRiskAlert(args: {
       recipientEmail,
       subject: message.subject,
       body: message.body,
-      status: getQueuedHighRiskAlertStatus(),
+      status: "QUEUED",
       createdAt: now,
       sentAt: null,
       errorMessage: null,
