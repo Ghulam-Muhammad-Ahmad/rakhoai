@@ -47,6 +47,7 @@ export type Database = {
           id: string
           name: string
           ownerId: string
+          uploadLimit: number | null
         }
         Insert: {
           country: string
@@ -55,6 +56,7 @@ export type Database = {
           id: string
           name: string
           ownerId: string
+          uploadLimit?: number | null
         }
         Update: {
           country?: string
@@ -63,6 +65,7 @@ export type Database = {
           id?: string
           name?: string
           ownerId?: string
+          uploadLimit?: number | null
         }
         Relationships: []
       }
@@ -294,6 +297,186 @@ export type Database = {
           },
         ]
       }
+      Feedback: {
+        Row: {
+          academyId: string
+          body: string | null
+          createdAt: string
+          id: string
+          title: string
+          type: string
+          userId: string
+        }
+        Insert: {
+          academyId: string
+          body?: string | null
+          createdAt?: string
+          id?: string
+          title: string
+          type?: string
+          userId?: string
+        }
+        Update: {
+          academyId?: string
+          body?: string | null
+          createdAt?: string
+          id?: string
+          title?: string
+          type?: string
+          userId?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Feedback_academyId_fkey"
+            columns: ["academyId"]
+            isOneToOne: false
+            referencedRelation: "Academy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ImportSet: {
+        Row: {
+          academyId: string
+          createdAt: string
+          id: string
+          name: string
+          paymentsStatus: Database["public"]["Enums"]["ImportEntityStatus"]
+          sessionsStatus: Database["public"]["Enums"]["ImportEntityStatus"]
+          studentsStatus: Database["public"]["Enums"]["ImportEntityStatus"]
+          teachersStatus: Database["public"]["Enums"]["ImportEntityStatus"]
+          updatedAt: string
+        }
+        Insert: {
+          academyId: string
+          createdAt?: string
+          id: string
+          name: string
+          paymentsStatus?: Database["public"]["Enums"]["ImportEntityStatus"]
+          sessionsStatus?: Database["public"]["Enums"]["ImportEntityStatus"]
+          studentsStatus?: Database["public"]["Enums"]["ImportEntityStatus"]
+          teachersStatus?: Database["public"]["Enums"]["ImportEntityStatus"]
+          updatedAt?: string
+        }
+        Update: {
+          academyId?: string
+          createdAt?: string
+          id?: string
+          name?: string
+          paymentsStatus?: Database["public"]["Enums"]["ImportEntityStatus"]
+          sessionsStatus?: Database["public"]["Enums"]["ImportEntityStatus"]
+          studentsStatus?: Database["public"]["Enums"]["ImportEntityStatus"]
+          teachersStatus?: Database["public"]["Enums"]["ImportEntityStatus"]
+          updatedAt?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ImportSet_academyId_fkey"
+            columns: ["academyId"]
+            isOneToOne: false
+            referencedRelation: "Academy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      Payment: {
+        Row: {
+          academyId: string
+          amount: number | null
+          billingMonth: string | null
+          createdAt: string
+          daysLate: number
+          dueDate: string | null
+          externalPaymentId: string | null
+          id: string
+          importSetId: string | null
+          isLate: boolean
+          method: string | null
+          overdueAmount: number | null
+          paidDate: string | null
+          paymentDate: string | null
+          paymentStatus: string | null
+          rawDataJson: Json
+          rawStatus: string | null
+          studentId: string
+          updatedAt: string
+          uploadId: string | null
+        }
+        Insert: {
+          academyId: string
+          amount?: number | null
+          billingMonth?: string | null
+          createdAt?: string
+          daysLate?: number
+          dueDate?: string | null
+          externalPaymentId?: string | null
+          id: string
+          importSetId?: string | null
+          isLate?: boolean
+          method?: string | null
+          overdueAmount?: number | null
+          paidDate?: string | null
+          paymentDate?: string | null
+          paymentStatus?: string | null
+          rawDataJson: Json
+          rawStatus?: string | null
+          studentId: string
+          updatedAt?: string
+          uploadId?: string | null
+        }
+        Update: {
+          academyId?: string
+          amount?: number | null
+          billingMonth?: string | null
+          createdAt?: string
+          daysLate?: number
+          dueDate?: string | null
+          externalPaymentId?: string | null
+          id?: string
+          importSetId?: string | null
+          isLate?: boolean
+          method?: string | null
+          overdueAmount?: number | null
+          paidDate?: string | null
+          paymentDate?: string | null
+          paymentStatus?: string | null
+          rawDataJson?: Json
+          rawStatus?: string | null
+          studentId?: string
+          updatedAt?: string
+          uploadId?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Payment_academyId_fkey"
+            columns: ["academyId"]
+            isOneToOne: false
+            referencedRelation: "Academy"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Payment_importSetId_fkey"
+            columns: ["importSetId"]
+            isOneToOne: false
+            referencedRelation: "ImportSet"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Payment_studentId_fkey"
+            columns: ["studentId"]
+            isOneToOne: false
+            referencedRelation: "Student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Payment_uploadId_fkey"
+            columns: ["uploadId"]
+            isOneToOne: false
+            referencedRelation: "Upload"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       RiskAssessment: {
         Row: {
           aiModel: string
@@ -351,6 +534,105 @@ export type Database = {
           },
         ]
       }
+      Session: {
+        Row: {
+          academyId: string
+          attendanceStatus: string | null
+          createdAt: string
+          durationMinutes: number | null
+          externalSessionId: string | null
+          id: string
+          importSetId: string | null
+          isCancelled: boolean
+          isRescheduled: boolean
+          rawDataJson: Json
+          rawStatus: string | null
+          sessionDate: string | null
+          studentId: string
+          subject: string | null
+          teacherId: string | null
+          teacherName: string | null
+          updatedAt: string
+          uploadId: string | null
+        }
+        Insert: {
+          academyId: string
+          attendanceStatus?: string | null
+          createdAt?: string
+          durationMinutes?: number | null
+          externalSessionId?: string | null
+          id: string
+          importSetId?: string | null
+          isCancelled?: boolean
+          isRescheduled?: boolean
+          rawDataJson: Json
+          rawStatus?: string | null
+          sessionDate?: string | null
+          studentId: string
+          subject?: string | null
+          teacherId?: string | null
+          teacherName?: string | null
+          updatedAt?: string
+          uploadId?: string | null
+        }
+        Update: {
+          academyId?: string
+          attendanceStatus?: string | null
+          createdAt?: string
+          durationMinutes?: number | null
+          externalSessionId?: string | null
+          id?: string
+          importSetId?: string | null
+          isCancelled?: boolean
+          isRescheduled?: boolean
+          rawDataJson?: Json
+          rawStatus?: string | null
+          sessionDate?: string | null
+          studentId?: string
+          subject?: string | null
+          teacherId?: string | null
+          teacherName?: string | null
+          updatedAt?: string
+          uploadId?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Session_academyId_fkey"
+            columns: ["academyId"]
+            isOneToOne: false
+            referencedRelation: "Academy"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Session_importSetId_fkey"
+            columns: ["importSetId"]
+            isOneToOne: false
+            referencedRelation: "ImportSet"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Session_studentId_fkey"
+            columns: ["studentId"]
+            isOneToOne: false
+            referencedRelation: "Student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Session_teacherId_fkey"
+            columns: ["teacherId"]
+            isOneToOne: false
+            referencedRelation: "Tutor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Session_uploadId_fkey"
+            columns: ["uploadId"]
+            isOneToOne: false
+            referencedRelation: "Upload"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       Student: {
         Row: {
           academyId: string
@@ -369,6 +651,7 @@ export type Database = {
           subject: string | null
           totalSessions: number | null
           tutor: string | null
+          tutorId: string | null
           updatedAt: string
           uploadId: string | null
         }
@@ -389,6 +672,7 @@ export type Database = {
           subject?: string | null
           totalSessions?: number | null
           tutor?: string | null
+          tutorId?: string | null
           updatedAt?: string
           uploadId?: string | null
         }
@@ -409,6 +693,7 @@ export type Database = {
           subject?: string | null
           totalSessions?: number | null
           tutor?: string | null
+          tutorId?: string | null
           updatedAt?: string
           uploadId?: string | null
         }
@@ -421,6 +706,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "Student_tutorId_fkey"
+            columns: ["tutorId"]
+            isOneToOne: false
+            referencedRelation: "Tutor"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "Student_uploadId_fkey"
             columns: ["uploadId"]
             isOneToOne: false
@@ -429,16 +721,53 @@ export type Database = {
           },
         ]
       }
+      Tutor: {
+        Row: {
+          academyId: string
+          createdAt: string
+          id: string
+          name: string
+          updatedAt: string
+        }
+        Insert: {
+          academyId: string
+          createdAt?: string
+          id: string
+          name: string
+          updatedAt?: string
+        }
+        Update: {
+          academyId?: string
+          createdAt?: string
+          id?: string
+          name?: string
+          updatedAt?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Tutor_academyId_fkey"
+            columns: ["academyId"]
+            isOneToOne: false
+            referencedRelation: "Academy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       Upload: {
         Row: {
           academyId: string
+          entityType: Database["public"]["Enums"]["UploadEntityType"]
           fileName: string
           fileUrl: string | null
+          formatType: string | null
           headers: Json | null
           id: string
+          identifierJson: Json | null
+          importSetId: string | null
           mappingJson: Json | null
           processedAt: string | null
           rawRowsJson: Json | null
+          reviewJson: Json | null
           rowCount: number | null
           sampleRows: Json | null
           status: Database["public"]["Enums"]["UploadStatus"]
@@ -446,13 +775,18 @@ export type Database = {
         }
         Insert: {
           academyId: string
+          entityType?: Database["public"]["Enums"]["UploadEntityType"]
           fileName: string
           fileUrl?: string | null
+          formatType?: string | null
           headers?: Json | null
           id: string
+          identifierJson?: Json | null
+          importSetId?: string | null
           mappingJson?: Json | null
           processedAt?: string | null
           rawRowsJson?: Json | null
+          reviewJson?: Json | null
           rowCount?: number | null
           sampleRows?: Json | null
           status?: Database["public"]["Enums"]["UploadStatus"]
@@ -460,13 +794,18 @@ export type Database = {
         }
         Update: {
           academyId?: string
+          entityType?: Database["public"]["Enums"]["UploadEntityType"]
           fileName?: string
           fileUrl?: string | null
+          formatType?: string | null
           headers?: Json | null
           id?: string
+          identifierJson?: Json | null
+          importSetId?: string | null
           mappingJson?: Json | null
           processedAt?: string | null
           rawRowsJson?: Json | null
+          reviewJson?: Json | null
           rowCount?: number | null
           sampleRows?: Json | null
           status?: Database["public"]["Enums"]["UploadStatus"]
@@ -478,6 +817,13 @@ export type Database = {
             columns: ["academyId"]
             isOneToOne: false
             referencedRelation: "Academy"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Upload_importSetId_fkey"
+            columns: ["importSetId"]
+            isOneToOne: false
+            referencedRelation: "ImportSet"
             referencedColumns: ["id"]
           },
         ]
@@ -496,7 +842,15 @@ export type Database = {
         | "DONE"
         | "STUDENT_SAVED"
         | "STUDENT_LOST"
+      ImportEntityStatus:
+        | "missing"
+        | "uploaded"
+        | "mapped"
+        | "reviewed"
+        | "imported"
+        | "failed"
       RiskBand: "HIGH" | "MEDIUM" | "LOW"
+      UploadEntityType: "students" | "teachers" | "sessions" | "payments"
       UploadStatus:
         | "PENDING"
         | "PREVIEW_READY"
@@ -641,7 +995,16 @@ export const Constants = {
         "STUDENT_SAVED",
         "STUDENT_LOST",
       ],
+      ImportEntityStatus: [
+        "missing",
+        "uploaded",
+        "mapped",
+        "reviewed",
+        "imported",
+        "failed",
+      ],
       RiskBand: ["HIGH", "MEDIUM", "LOW"],
+      UploadEntityType: ["students", "teachers", "sessions", "payments"],
       UploadStatus: [
         "PENDING",
         "PREVIEW_READY",

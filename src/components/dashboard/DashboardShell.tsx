@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, MessageCircleHeart,
   Settings, Search, LogOut, Upload, GraduationCap,
-  CalendarCheck, CreditCard, History,
+  CalendarCheck, CreditCard, History, MessageSquarePlus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -22,6 +22,7 @@ const navItems = [
 ];
 
 const manageItems = [
+  { href: "/feedback", icon: MessageSquarePlus, label: "Feedback" },
   { href: "/settings", icon: Settings,  label: "Settings" },
 ];
 
