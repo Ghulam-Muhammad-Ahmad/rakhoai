@@ -3,14 +3,24 @@
 import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Avatar from "@/components/ui/Avatar";
 import RiskBadge from "@/components/ui/RiskBadge";
+import { Pagination } from "@/components/ui/Pagination";
+import { usePaginatedRows } from "@/components/ui/usePaginatedRows";
 import type { StudentRiskListItem } from "@/lib/students/risk";
 
-export function StudentsBulkTable({ students }: { students: StudentRiskListItem[] }) {
-  const router = useRouter();
-  const [rows, setRows] = useState(students);
+export type StudentTableFilters = {
+  band?: string;
+  tutor?: string;
+  subject?: string;
+  q?: string;
+  sort?: string;
+  direction?: string;
+};
+
+export function StudentsBulkTable({ filters }: { filters: StudentTableFilters }) {
+  const { rows, total, page, setPage, perPage, setPerPage, loading, reload } =
+    usePaginatedRows<StudentRiskListItem>("/api/students", filters);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const selectedIds = useMemo(() => [...selected], [selected]);
@@ -41,10 +51,8 @@ export function StudentsBulkTable({ students }: { students: StudentRiskListItem[
         body: JSON.stringify({ ids }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "Delete failed");
-      const deleted = new Set(ids);
-      setRows((current) => current.filter((row) => !deleted.has(row.id)));
-      setSelected((current) => new Set([...current].filter((id) => !deleted.has(id))));
-      router.refresh();
+      setSelected(new Set());
+      await reload();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Could not delete students");
     } finally {
@@ -57,7 +65,7 @@ export function StudentsBulkTable({ students }: { students: StudentRiskListItem[
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: "1px solid var(--neutral-100)", background: selected.size > 0 ? "var(--primary-50)" : "#fff" }}>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--neutral-600)" }}>
           <input type="checkbox" checked={rows.length > 0 && selected.size === rows.length} onChange={toggleAll} aria-label="Select all students" />
-          {selected.size > 0 ? `${selected.size} selected` : `${rows.length} student${rows.length !== 1 ? "s" : ""}`}
+          {selected.size > 0 ? `${selected.size} selected` : `${total} student${total !== 1 ? "s" : ""}`}
         </label>
         <button
           disabled={deleting || selectedIds.length === 0}
@@ -107,11 +115,16 @@ export function StudentsBulkTable({ students }: { students: StudentRiskListItem[
         </div>
       ))}
 
-      {rows.length === 0 && (
+      {loading && rows.length === 0 && (
+        <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 14, color: "var(--neutral-500)" }}>Loading…</div>
+      )}
+      {!loading && rows.length === 0 && (
         <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 14, color: "var(--neutral-500)" }}>
           No students match that filter.
         </div>
       )}
+
+      <Pagination page={page} perPage={perPage} total={total} loading={loading} onPageChange={setPage} onPerPageChange={setPerPage} />
     </>
   );
 }

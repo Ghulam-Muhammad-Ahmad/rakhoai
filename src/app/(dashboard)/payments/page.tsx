@@ -5,16 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getUserDb } from "@/lib/db/user-client";
 import { getCurrencySymbol } from "@/lib/currency";
-import { PaymentsBulkTable, type PaymentTableRow } from "@/components/dashboard/PaymentsBulkTable";
+import { PaymentsBulkTable } from "@/components/dashboard/PaymentsBulkTable";
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-function first(value: string | string[] | undefined): string {
-  return (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
-}
-
-export default async function PaymentsPage({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
+export default async function PaymentsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -24,32 +17,14 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
   if (!dbUser.academy) redirect("/onboarding");
 
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
-  const query = first(params.q).toLowerCase();
-  const statusFilter = first(params.status).toLowerCase();
 
+  // Cheap probe to detect a missing Payment table (migration not applied); the
+  // table fetches its own paginated/filtered pages from /api/payments.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (sb as any)
+  const { error } = await (sb as any)
     .from("Payment")
-    .select(`
-      id,
-      paymentDate,
-      amount,
-      paymentStatus,
-      overdueAmount,
-      method,
-      createdAt,
-      student:Student(id, name, externalId)
-    `)
-    .eq("academyId", dbUser.academy.id)
-    .order("paymentDate", { ascending: false, nullsFirst: false })
-    .limit(300) as { data: PaymentTableRow[] | null; error: { message: string } | null };
-
-  const rows = (data ?? []).filter((row) => {
-    const haystack = `${row.student?.name ?? ""} ${row.student?.externalId ?? ""} ${row.paymentStatus ?? ""} ${row.method ?? ""}`.toLowerCase();
-    const matchesQuery = !query || haystack.includes(query);
-    const matchesStatus = !statusFilter || String(row.paymentStatus ?? "").toLowerCase().includes(statusFilter);
-    return matchesQuery && matchesStatus;
-  });
+    .select("id", { count: "exact", head: true })
+    .eq("academyId", dbUser.academy.id) as { error: { message: string } | null };
 
   return (
     <div className="page-fade">
@@ -64,24 +39,12 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Sea
       </div>
 
       <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-xs)", overflow: "hidden" }}>
-        <form style={{ display: "flex", gap: 10, padding: 16, borderBottom: "1px solid var(--neutral-100)", background: "#fff" }}>
-          <input name="q" defaultValue={first(params.q)} placeholder="Search student, ID, method" style={{ flex: 1, minWidth: 240, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--neutral-200)", fontSize: 13, outline: "none" }} />
-          <select name="status" defaultValue={first(params.status)} style={{ width: 170, padding: "9px 12px", borderRadius: 8, border: "1px solid var(--neutral-200)", fontSize: 13, background: "#fff", color: "var(--neutral-700)" }}>
-            <option value="">All statuses</option>
-            <option value="paid">Paid</option>
-            <option value="pending">Pending</option>
-            <option value="overdue">Overdue</option>
-            <option value="unpaid">Unpaid</option>
-          </select>
-          <button style={{ padding: "9px 14px", borderRadius: 8, border: "none", background: "var(--primary-500)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Filter</button>
-        </form>
-
         {error ? (
           <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 14, color: "#92400E", background: "#FFFBEB" }}>
             Payments table is not available yet. Apply the structured import migration, then import payments.
           </div>
         ) : (
-          <PaymentsBulkTable rows={rows} currencySymbol={currencySymbol} />
+          <PaymentsBulkTable currencySymbol={currencySymbol} />
         )}
       </div>
     </div>

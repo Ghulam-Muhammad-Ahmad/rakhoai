@@ -5,20 +5,14 @@ import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 import { signUp } from '@/app/(auth)/actions'
 import { GoogleButton } from '@/components/auth/GoogleButton'
+import { SubmitButton } from '@/components/auth/SubmitButton'
 import { useSearchParams } from 'next/navigation'
 
 function SignupForm() {
   const [showPw, setShowPw] = useState(false)
-  const [loading, setLoading] = useState(false)
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
   const message = searchParams.get('message')
-
-  async function handleSubmit(formData: FormData) {
-    setLoading(true)
-    await signUp(formData)
-    setLoading(false)
-  }
 
   return (
     <div
@@ -57,7 +51,7 @@ function SignupForm() {
         </div>
       )}
 
-      <form action={handleSubmit} className="flex flex-col gap-3">
+      <form action={signUp} className="flex flex-col gap-3">
         <input
           type="text"
           name="name"
@@ -122,14 +116,7 @@ function SignupForm() {
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-2 w-full py-3.5 rounded-sm text-white text-[15px] font-semibold border-0 cursor-pointer transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: loading ? '#94A3B8' : '#0F766E' }}
-        >
-          {loading ? 'Creating your account…' : 'Create account'}
-        </button>
+        <SubmitButton idle="Create account" pending="Creating your account…" />
 
       </form>
 

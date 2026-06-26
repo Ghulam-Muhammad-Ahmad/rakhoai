@@ -2,9 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Avatar from "@/components/ui/Avatar";
+import { Pagination } from "@/components/ui/Pagination";
+import { SortHeader } from "@/components/ui/SortHeader";
+import { TableSearchBar } from "@/components/ui/TableSearchBar";
+import { useDebounced } from "@/components/ui/useDebounced";
+import { usePaginatedRows } from "@/components/ui/usePaginatedRows";
 import { formatCurrencyAmount, formatDateLabel, formatPaymentStatus, statusColors } from "@/lib/imports/table-format";
+
+const STATUS_OPTIONS = [
+  { value: "paid", label: "Paid" },
+  { value: "pending", label: "Pending" },
+  { value: "overdue", label: "Overdue" },
+  { value: "unpaid", label: "Unpaid" },
+];
 
 export type PaymentTableRow = {
   id: string;
@@ -37,12 +48,22 @@ function StatusBadge({ value }: { value: string | null }) {
   );
 }
 
-export function PaymentsBulkTable({ rows: initialRows, currencySymbol }: { rows: PaymentTableRow[]; currencySymbol: string }) {
-  const router = useRouter();
-  const [rows, setRows] = useState(initialRows);
+export function PaymentsBulkTable({ currencySymbol }: { currencySymbol: string }) {
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  const [sort, setSort] = useState("");
+  const [direction, setDirection] = useState<"asc" | "desc">("desc");
+  const dq = useDebounced(q);
+  const { rows, total, page, setPage, perPage, setPerPage, loading, reload } =
+    usePaginatedRows<PaymentTableRow>("/api/payments", { q: dq, status, sort, direction });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const selectedIds = useMemo(() => [...selected], [selected]);
+
+  function onSort(col: string) {
+    if (sort === col) setDirection((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSort(col); setDirection("desc"); }
+  }
 
   function toggle(id: string) {
     setSelected((current) => {
@@ -70,10 +91,8 @@ export function PaymentsBulkTable({ rows: initialRows, currencySymbol }: { rows:
         body: JSON.stringify({ ids }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "Delete failed");
-      const deleted = new Set(ids);
-      setRows((current) => current.filter((row) => !deleted.has(row.id)));
-      setSelected((current) => new Set([...current].filter((id) => !deleted.has(id))));
-      router.refresh();
+      setSelected(new Set());
+      await reload();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Could not delete payments");
     } finally {
@@ -83,10 +102,12 @@ export function PaymentsBulkTable({ rows: initialRows, currencySymbol }: { rows:
 
   return (
     <>
+      <TableSearchBar q={q} onQ={setQ} status={status} onStatus={setStatus} statusOptions={STATUS_OPTIONS} placeholder="Search student, method" />
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: "1px solid var(--neutral-100)", background: selected.size > 0 ? "var(--primary-50)" : "#fff" }}>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--neutral-600)" }}>
           <input type="checkbox" checked={rows.length > 0 && selected.size === rows.length} onChange={toggleAll} aria-label="Select all payments" />
-          {selected.size > 0 ? `${selected.size} selected` : `${rows.length} payment${rows.length !== 1 ? "s" : ""}`}
+          {selected.size > 0 ? `${selected.size} selected` : `${total} payment${total !== 1 ? "s" : ""}`}
         </label>
         <button disabled={deleting || selectedIds.length === 0} onClick={() => deleteIds(selectedIds)} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 10px", borderRadius: 8, border: "1px solid #FECACA", background: selectedIds.length ? "#FEF2F2" : "var(--neutral-50)", color: selectedIds.length ? "var(--error)" : "var(--neutral-400)", fontSize: 13, fontWeight: 600, cursor: selectedIds.length ? "pointer" : "not-allowed", opacity: deleting ? 0.6 : 1 }}>
           <Trash2 size={14} /> Delete selected
@@ -94,7 +115,13 @@ export function PaymentsBulkTable({ rows: initialRows, currencySymbol }: { rows:
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "32px 1.6fr 1fr 0.9fr 1fr 1fr 0.8fr 44px", padding: "12px 20px", background: "var(--neutral-50)", borderBottom: "1px solid var(--neutral-100)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", fontWeight: 600, gap: 12 }}>
-        <div /><div>Student</div><div>Date</div><div>Amount</div><div>Status</div><div>Overdue</div><div>Method</div><div />
+        <div /><div>Student</div>
+        <div><SortHeader label="Date" col="date" sort={sort} direction={direction} onSort={onSort} /></div>
+        <div><SortHeader label="Amount" col="amount" sort={sort} direction={direction} onSort={onSort} /></div>
+        <div><SortHeader label="Status" col="status" sort={sort} direction={direction} onSort={onSort} /></div>
+        <div><SortHeader label="Overdue" col="overdue" sort={sort} direction={direction} onSort={onSort} /></div>
+        <div><SortHeader label="Method" col="method" sort={sort} direction={direction} onSort={onSort} /></div>
+        <div />
       </div>
 
       {rows.map((row) => {
@@ -121,11 +148,16 @@ export function PaymentsBulkTable({ rows: initialRows, currencySymbol }: { rows:
         );
       })}
 
-      {rows.length === 0 && (
+      {loading && rows.length === 0 && (
+        <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 14, color: "var(--neutral-500)" }}>Loading…</div>
+      )}
+      {!loading && rows.length === 0 && (
         <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 14, color: "var(--neutral-500)" }}>
           No payments found. Import a payments file to unlock fee-risk accuracy.
         </div>
       )}
+
+      <Pagination page={page} perPage={perPage} total={total} loading={loading} onPageChange={setPage} onPerPageChange={setPerPage} />
     </>
   );
 }

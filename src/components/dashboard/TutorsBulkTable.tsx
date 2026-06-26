@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Avatar from "@/components/ui/Avatar";
+import { Pagination } from "@/components/ui/Pagination";
+import { usePaginatedRows } from "@/components/ui/usePaginatedRows";
 import type { TutorStats } from "@/lib/tutors/tutor-core";
 
 function getInitials(name: string): string {
@@ -12,9 +13,9 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function TutorsBulkTable({ tutors, currencySymbol }: { tutors: TutorStats[]; currencySymbol: string }) {
-  const router = useRouter();
-  const [rows, setRows] = useState(tutors);
+export function TutorsBulkTable({ currencySymbol }: { currencySymbol: string }) {
+  const { rows, total, page, setPage, perPage, setPerPage, loading, reload } =
+    usePaginatedRows<TutorStats>("/api/tutors", {});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const selectedNames = useMemo(() => [...selected], [selected]);
@@ -46,10 +47,8 @@ export function TutorsBulkTable({ tutors, currencySymbol }: { tutors: TutorStats
         body: JSON.stringify({ names }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "Delete failed");
-      const deleted = new Set(names);
-      setRows((current) => current.filter((row) => !deleted.has(row.name)));
-      setSelected((current) => new Set([...current].filter((name) => !deleted.has(name))));
-      router.refresh();
+      setSelected(new Set());
+      await reload();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Could not delete tutors");
     } finally {
@@ -62,7 +61,7 @@ export function TutorsBulkTable({ tutors, currencySymbol }: { tutors: TutorStats
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: "1px solid var(--neutral-100)", background: selected.size > 0 ? "var(--primary-50)" : "#fff" }}>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--neutral-600)" }}>
           <input type="checkbox" checked={deletableRows.length > 0 && selected.size === deletableRows.length} onChange={toggleAll} aria-label="Select all tutors" />
-          {selected.size > 0 ? `${selected.size} selected` : `${rows.length} tutor${rows.length !== 1 ? "s" : ""}`}
+          {selected.size > 0 ? `${selected.size} selected` : `${total} tutor${total !== 1 ? "s" : ""}`}
         </label>
         <button disabled={deleting || selectedNames.length === 0} onClick={() => deleteNames(selectedNames)} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 10px", borderRadius: 8, border: "1px solid #FECACA", background: selectedNames.length ? "#FEF2F2" : "var(--neutral-50)", color: selectedNames.length ? "var(--error)" : "var(--neutral-400)", fontSize: 13, fontWeight: 600, cursor: selectedNames.length ? "pointer" : "not-allowed", opacity: deleting ? 0.6 : 1 }}>
           <Trash2 size={14} /> Delete selected
@@ -96,11 +95,16 @@ export function TutorsBulkTable({ tutors, currencySymbol }: { tutors: TutorStats
         </div>
       ))}
 
-      {rows.length === 0 && (
+      {loading && rows.length === 0 && (
+        <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 14, color: "var(--neutral-500)" }}>Loading…</div>
+      )}
+      {!loading && rows.length === 0 && (
         <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 14, color: "var(--neutral-500)" }}>
           No tutor data yet. Upload mapped student data with a tutor column to populate this page.
         </div>
       )}
+
+      <Pagination page={page} perPage={perPage} total={total} loading={loading} onPageChange={setPage} onPerPageChange={setPerPage} />
     </>
   );
 }

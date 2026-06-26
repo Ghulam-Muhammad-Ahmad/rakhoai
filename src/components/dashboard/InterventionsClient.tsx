@@ -11,6 +11,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { Pagination } from "@/components/ui/Pagination";
+import { DEFAULT_PER_PAGE } from "@/lib/pagination";
 import type { Database } from "@/lib/db/database.types";
 
 type ActionStatus = Database["public"]["Enums"]["ActionStatus"];
@@ -144,6 +146,8 @@ export default function InterventionsClient({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<number>(DEFAULT_PER_PAGE);
   const [detailItem, setDetailItem] = useState<
     { type: "pending"; item: PendingIntervention } | { type: "action"; item: SentAction } | null
   >(null);
@@ -366,6 +370,22 @@ export default function InterventionsClient({
     }
   }
 
+  // Client-side pagination over the active tab's list (data is already loaded).
+  const activeList = tab === "pending" ? searchedPending : searchedActions;
+  const total = activeList.length;
+  const lastPage = Math.max(1, Math.ceil(total / perPage));
+  const curPage = Math.min(page, lastPage);
+  const pagedPending = tab === "pending" ? (searchedPending.slice((curPage - 1) * perPage, curPage * perPage)) : [];
+  const pagedActions = tab !== "pending" ? (searchedActions.slice((curPage - 1) * perPage, curPage * perPage)) : [];
+
+  // Reset to page 1 when tab/search/perPage change (render-time, no effect).
+  const resetKey = `${tab}|${normalizedSearch}|${perPage}`;
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey);
+    setPage(1);
+  }
+
   const tabs = [
     { key: "pending" as const, label: "Pending", count: pending.length },
     { key: "active" as const, label: "Active", count: activeActions.length },
@@ -432,7 +452,13 @@ export default function InterventionsClient({
           </div>
         </div>
 
-        <div>
+        {total > 0 && (
+          <div className="rounded-sm border border-[var(--neutral-200)] bg-white">
+            <Pagination page={curPage} perPage={perPage} total={total} onPageChange={setPage} onPerPageChange={setPerPage} />
+          </div>
+        )}
+
+        <div className="mt-4">
           {tab === "pending" && (
             <section>
               {searchedPending.length === 0 ? (
@@ -442,7 +468,7 @@ export default function InterventionsClient({
                 />
               ) : (
                 <div className="flex flex-wrap gap-2.5">
-                  {searchedPending.map((item) => (
+                  {pagedPending.map((item) => (
                     <PendingCard
                       key={item.studentId}
                       item={item}
@@ -466,7 +492,7 @@ export default function InterventionsClient({
                 />
               ) : (
                 <div className="flex flex-wrap gap-2.5">
-                  {searchedActions.map((action) => (
+                  {pagedActions.map((action) => (
                     <ActionCard
                       key={action.id}
                       action={action}

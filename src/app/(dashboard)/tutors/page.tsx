@@ -16,6 +16,7 @@ export default async function TutorsPage() {
   if (!dbUser.academy) redirect("/onboarding");
 
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
+  // Header count only; the table fetches its own paginated pages from /api/tutors.
   const tutors = await getTutorStats(dbUser.academy.id, sb);
 
   return (
@@ -31,7 +32,7 @@ export default async function TutorsPage() {
       </div>
 
       <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-xs)", overflow: "hidden" }}>
-        <TutorsBulkTable tutors={tutors} currencySymbol={currencySymbol} />
+        <TutorsBulkTable currencySymbol={currencySymbol} />
       </div>
     </div>
   );

@@ -5,19 +5,13 @@ import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 import { signIn } from '@/app/(auth)/actions'
 import { GoogleButton } from '@/components/auth/GoogleButton'
+import { SubmitButton } from '@/components/auth/SubmitButton'
 import { useSearchParams } from 'next/navigation'
 
 function LoginForm() {
   const [showPw, setShowPw] = useState(false)
-  const [loading, setLoading] = useState(false)
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
-
-  async function handleSubmit(formData: FormData) {
-    setLoading(true)
-    await signIn(formData)
-    setLoading(false)
-  }
 
   return (
     <div
@@ -48,7 +42,7 @@ function LoginForm() {
         <span>Or sign in with your email</span>
         <span className="flex-1 h-px bg-[#CBD5E1]" />
       </div>
-      <form action={handleSubmit} className="flex flex-col gap-3">
+      <form action={signIn} className="flex flex-col gap-3">
         <input
           type="email"
           name="email"
@@ -82,14 +76,7 @@ function LoginForm() {
           </button>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-2 w-full py-3.5 rounded-sm text-white text-[15px] font-semibold border-0 cursor-pointer transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: loading ? '#94A3B8' : '#0F766E' }}
-        >
-          {loading ? 'Signing in…' : 'Sign in'}
-        </button>
+        <SubmitButton idle="Sign in" pending="Signing in…" />
       </form>
 
      

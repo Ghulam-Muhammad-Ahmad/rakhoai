@@ -1,41 +1,14 @@
 import { Upload } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { StudentsFilterBar } from "@/components/students/StudentsFilterBar";
-import { StudentsBulkTable } from "@/components/students/StudentsBulkTable";
+import { StudentsBrowser } from "@/components/students/StudentsBrowser";
 import { createClient } from "@/lib/supabase/server";
 import { getUserDb } from "@/lib/db/user-client";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getStudentRiskList } from "@/lib/students/risk";
 import { getCurrencySymbol } from "@/lib/currency";
-import type { RiskBandFilter, SortDirection, StudentRiskSort } from "@/lib/students/risk-core";
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-function first(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function parseBand(value: string | undefined): RiskBandFilter | undefined {
-  const upper = value?.toUpperCase();
-  if (upper === "HIGH" || upper === "MEDIUM" || upper === "LOW" || upper === "AT_RISK" || upper === "ALL") {
-    return upper as RiskBandFilter;
-  }
-  return undefined;
-}
-
-function parseSort(value: string | undefined): StudentRiskSort | undefined {
-  if (value === "riskScore" || value === "lastSessionDate" || value === "feesAmount" || value === "name") return value;
-  return undefined;
-}
-
-function parseDirection(value: string | undefined): SortDirection | undefined {
-  if (value === "asc" || value === "desc") return value;
-  return undefined;
-}
-
-export default async function StudentsPage({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
+export default async function StudentsPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -47,15 +20,9 @@ export default async function StudentsPage({ searchParams }: { searchParams: Sea
   if (!dbUser.academy) redirect("/onboarding");
 
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
+  // Unfiltered list feeds the filter bar's band counts; the table fetches its
+  // own paginated/filtered pages from /api/students.
   const allStudents = await getStudentRiskList(dbUser.academy.id, { sort: "riskScore", direction: "desc" }, currencySymbol, sb);
-  const students = await getStudentRiskList(dbUser.academy.id, {
-    band: parseBand(first(params.band)),
-    tutor: first(params.tutor),
-    subject: first(params.subject),
-    query: first(params.q),
-    sort: parseSort(first(params.sort)),
-    direction: parseDirection(first(params.direction)),
-  }, currencySymbol, sb);
 
   return (
     <div className="page-fade">
@@ -70,8 +37,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Sea
       </div>
 
       <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-xs)", overflow: "hidden" }}>
-        <StudentsFilterBar students={allStudents} />
-        <StudentsBulkTable students={students} />
+        <StudentsBrowser allStudents={allStudents} />
       </div>
     </div>
   );

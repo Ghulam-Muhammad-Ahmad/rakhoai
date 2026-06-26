@@ -5,6 +5,7 @@ import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { deleteStudentsForAcademy } from "@/lib/deletions/bulk-delete";
 import { normalizeDeleteIds } from "@/lib/deletions/bulk-delete-core";
 import { getStudentRiskList } from "@/lib/students/risk";
+import { parsePageParams } from "@/lib/pagination";
 import type { DbRiskBand, RiskBandFilter, SortDirection, StudentRiskSort } from "@/lib/students/risk-core";
 
 function parseBand(value: string | null): RiskBandFilter | undefined {
@@ -42,7 +43,8 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = req.nextUrl;
-  const students = await getStudentRiskList(dbUser.academy.id, {
+  const { from, to } = parsePageParams(searchParams);
+  const all = await getStudentRiskList(dbUser.academy.id, {
     band: parseBand(searchParams.get("band")),
     tutor: searchParams.get("tutor"),
     subject: searchParams.get("subject"),
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest) {
     direction: parseDirection(searchParams.get("direction")),
   }, "$", sb);
 
-  return NextResponse.json({ students });
+  return NextResponse.json({ rows: all.slice(from, to + 1), total: all.length });
 }
 
 export async function DELETE(req: NextRequest) {

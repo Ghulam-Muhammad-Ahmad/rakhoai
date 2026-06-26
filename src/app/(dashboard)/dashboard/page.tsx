@@ -101,24 +101,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="page-fade" style={{ position: "relative" }}>
-      {/* Faint truck-art watermark — desi ambient texture */}
-      <Image
-        src="/assets/desi/tracktar.png"
-        alt=""
-        width={320}
-        height={320}
-        aria-hidden
-        style={{ position: "absolute", top: -24, right: -32, width: 280, height: "auto", opacity: 0.15, pointerEvents: "none", zIndex: 0, userSelect: "none" }}
-      />
-      {/* Faint pani-puri watermark — bottom left */}
-      <Image
-        src="/assets/desi/panipuri.png"
-        alt=""
-        width={320}
-        height={320}
-        aria-hidden
-        style={{ position: "absolute", bottom: -24, left: -32, width: 280, height: "auto", opacity: 0.15, pointerEvents: "none", zIndex: 0, userSelect: "none" }}
-      />
       {/* Page header */}
       <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>

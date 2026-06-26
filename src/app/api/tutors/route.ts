@@ -3,7 +3,26 @@ import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getUserDb } from "@/lib/db/user-client";
 import { unassignTutorsForAcademy } from "@/lib/deletions/bulk-delete";
 import { normalizeDeleteNames } from "@/lib/deletions/bulk-delete-core";
+import { getTutorStats } from "@/lib/tutors/tutors";
+import { parsePageParams } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
+
+export async function GET(req: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
+  if (!dbUser.academy) return NextResponse.json({ error: "Academy not found" }, { status: 404 });
+
+  const { from, to } = parsePageParams(req.nextUrl.searchParams);
+  const all = await getTutorStats(dbUser.academy.id, sb);
+  return NextResponse.json({ rows: all.slice(from, to + 1), total: all.length });
+}
 
 export async function DELETE(req: NextRequest) {
   const supabase = await createClient();

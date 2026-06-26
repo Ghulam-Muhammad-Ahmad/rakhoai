@@ -1,4 +1,5 @@
 import { adminDb } from "@/lib/db/client";
+import { IN_MEMORY_FETCH_CAP } from "@/lib/pagination";
 import type { Database, Json } from "@/lib/db/database.types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -154,7 +155,9 @@ export async function getStudentRiskList(
     .eq("academyId", academyId)
     .order("computedAt", { referencedTable: "RiskAssessment", ascending: false })
     .limit(1, { referencedTable: "RiskAssessment" })
-    .order("updatedAt", { ascending: false });
+    .order("updatedAt", { ascending: false })
+    // Safety cap: this list is filtered/sorted/paginated in memory by callers.
+    .limit(IN_MEMORY_FETCH_CAP);
 
   if (error) throw new Error(`Failed to fetch students`);
 
