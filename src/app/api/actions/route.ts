@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUserDb } from "@/lib/db/user-client";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { createAction } from "@/lib/actions/actions";
 import { isActionStatus } from "@/lib/actions/action-core";
@@ -24,7 +25,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) {
     return NextResponse.json({ error: "Academy not found" }, { status: 404 });
   }
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
       content: typeof body.content === "string" ? body.content : null,
       status: body.status,
       notes: typeof body.notes === "string" ? body.notes : null,
-    });
+    }, sb);
 
     revalidateActionPaths(action.studentId);
     return NextResponse.json({ action }, { status: 201 });
@@ -67,7 +69,8 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) {
     return NextResponse.json({ error: "Academy not found" }, { status: 404 });
   }
@@ -79,7 +82,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    const result = await deleteActionsForAcademy(dbUser.academy.id, ids);
+    const result = await deleteActionsForAcademy(dbUser.academy.id, ids, sb);
     revalidateActionPaths();
     return NextResponse.json({ result });
   } catch (error) {

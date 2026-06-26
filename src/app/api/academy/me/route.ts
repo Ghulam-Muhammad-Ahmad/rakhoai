@@ -11,7 +11,7 @@ export async function GET() {
   }
 
   try {
-    const dbUser = await getAuthUserWithAcademy(user.id);
+    const dbUser = await getAuthUserWithAcademy(user.id, supabase);
     return NextResponse.json({ academy: dbUser?.academy ?? null });
   } catch {
     return NextResponse.json({ error: "Database error" }, { status: 500 });

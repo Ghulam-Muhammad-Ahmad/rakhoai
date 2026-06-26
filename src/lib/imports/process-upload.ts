@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
-import { db } from "@/lib/db/client";
-import type { Json } from "@/lib/db/database.types";
+import { adminDb } from "@/lib/db/client";
+import type { Database, Json } from "@/lib/db/database.types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MappingResult } from "@/lib/matching";
 import type { EntityType, ExistingStudentForMatch, IdentifierSelection, ImportReviewSummary } from "./types";
 import { normalizeRows } from "@/lib/scoring/normalize";
@@ -46,11 +47,11 @@ function isMissingColumnError(error: { message?: string } | null): boolean {
   return /column .* does not exist|schema cache|Could not find .* column/i.test(error?.message ?? "");
 }
 
-async function insertWithLegacyColumnFallback(table: "Session" | "Payment", payload: Record<string, unknown>, optionalKeys: string[]) {
+async function insertWithLegacyColumnFallback(db: SupabaseClient<Database>, table: "Session" | "Payment", payload: Record<string, unknown>, optionalKeys: string[]) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (db as any).from(table).insert(payload);
   if (!error) return;
-  if (!isMissingColumnError(error)) throw new Error(`Failed to import ${table.toLowerCase()}: ${error.message}`);
+  if (!isMissingColumnError(error)) throw new Error(`Failed to import ${table.toLowerCase()}`);
 
   const legacyPayload = { ...payload };
   for (const key of optionalKeys) delete legacyPayload[key];
@@ -60,7 +61,7 @@ async function insertWithLegacyColumnFallback(table: "Session" | "Payment", payl
   if (legacyError) throw new Error(`Failed to import ${table.toLowerCase()}: ${legacyError.message}`);
 }
 
-async function updateImportSetStatus(importSetId: string | null | undefined, entityType: EntityType, status: string) {
+async function updateImportSetStatus(db: SupabaseClient<Database>, importSetId: string | null | undefined, entityType: EntityType, status: string) {
   if (!importSetId) return;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (db as any).from("ImportSet").update({
@@ -69,16 +70,16 @@ async function updateImportSetStatus(importSetId: string | null | undefined, ent
   }).eq("id", importSetId);
 }
 
-async function loadStudents(academyId: string): Promise<ExistingStudentForMatch[]> {
+async function loadStudents(db: SupabaseClient<Database>, academyId: string): Promise<ExistingStudentForMatch[]> {
   const { data, error } = await db
     .from("Student")
     .select("id, externalId, name, contact")
     .eq("academyId", academyId) as { data: ExistingStudentForMatch[] | null; error: { message: string } | null };
-  if (error) throw new Error(`Failed to load students: ${error.message}`);
+  if (error) throw new Error(`Failed to load students`);
   return data ?? [];
 }
 
-async function syncStructuredStudentSummaries(academyId: string) {
+async function syncStructuredStudentSummaries(db: SupabaseClient<Database>, academyId: string) {
   const { data: students, error: studentsError } = await db
     .from("Student")
     .select("id, name, externalId, contact, subject, tutor, feesAmount, rawDataJson, attendanceRate, lastSessionDate, paymentStatus, lastPaymentDate, totalSessions")
@@ -154,12 +155,12 @@ async function syncStructuredStudentSummaries(academyId: string) {
         updatedAt: now,
       })
       .eq("id", studentId);
-    if (error) throw new Error(`Failed to update student summary fields: ${error.message}`);
+    if (error) throw new Error(`Failed to update student summary fields`);
   }
 }
 
-async function clearStudentDataForAcademy(academyId: string) {
-  const students = await loadStudents(academyId);
+async function clearStudentDataForAcademy(db: SupabaseClient<Database>, academyId: string) {
+  const students = await loadStudents(db, academyId);
   const studentIds = students.map((student) => student.id);
 
   await db.from("EmailAlert").delete().eq("academyId", academyId);
@@ -191,14 +192,14 @@ function isSyntheticExternalId(externalId: string | null | undefined, name: stri
     && SYNTHETIC_EXTERNAL_ID.test(externalId);
 }
 
-async function importStudents(args: {
+async function importStudents(db: SupabaseClient<Database>, args: {
   academyId: string;
   uploadId: string;
   rows: Record<string, unknown>[];
   mappings: MappingResult[];
 }) {
   const { students } = await normalizeRows(args.rows, args.mappings, { academyId: args.academyId, uploadId: args.uploadId });
-  const existing = await loadStudents(args.academyId);
+  const existing = await loadStudents(db, args.academyId);
 
   // Real (non-synthetic) external ids are globally unique → safe single-id lookup.
   const byExternal = new Map<string, string>();
@@ -225,7 +226,7 @@ async function importStudents(args: {
   let updatedRows = 0;
   let newRows = 0;
   for (const student of students) {
-    const tutor = await getOrCreateTutor(args.academyId, student.tutor);
+    const tutor = await getOrCreateTutor(args.academyId, student.tutor, db);
     const now = new Date().toISOString();
     // Precedence: real external id → (contact + name) composite → unambiguous name.
     // A bare shared phone with a DIFFERENT name no longer merges siblings.
@@ -262,7 +263,7 @@ async function importStudents(args: {
     if (existingId) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (db as any).from("Student").update(payload).eq("id", existingId);
-      if (error) throw new Error(`Failed to update student: ${error.message}`);
+      if (error) throw new Error(`Failed to update student`);
       updatedRows++;
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -271,7 +272,7 @@ async function importStudents(args: {
         id: crypto.randomUUID(),
         createdAt: now,
       });
-      if (error) throw new Error(`Failed to insert student: ${error.message}`);
+      if (error) throw new Error(`Failed to insert student`);
       newRows++;
     }
   }
@@ -288,13 +289,13 @@ async function importStudents(args: {
   } satisfies ImportReviewSummary;
 }
 
-async function importTeachers(args: { academyId: string; rows: Record<string, unknown>[]; mappings: MappingResult[] }) {
+async function importTeachers(db: SupabaseClient<Database>, args: { academyId: string; rows: Record<string, unknown>[]; mappings: MappingResult[] }) {
   const sources = sourceByField(args.mappings);
   let imported = 0;
   for (const row of args.rows) {
     const name = String(get(row, sources, "teacher_name") ?? "").trim();
     if (!name) continue;
-    await getOrCreateTutor(args.academyId, name);
+    await getOrCreateTutor(args.academyId, name, db);
     imported++;
   }
   return {
@@ -309,7 +310,7 @@ async function importTeachers(args: { academyId: string; rows: Record<string, un
   } satisfies ImportReviewSummary;
 }
 
-async function importSessionsOrPayments(args: {
+async function importSessionsOrPayments(db: SupabaseClient<Database>, args: {
   academyId: string;
   uploadId: string;
   importSetId: string | null;
@@ -319,7 +320,7 @@ async function importSessionsOrPayments(args: {
   identifier: IdentifierSelection;
 }) {
   const sources = sourceByField(args.mappings);
-  const students = await loadStudents(args.academyId);
+  const students = await loadStudents(db, args.academyId);
   let imported = 0;
   let unmatched = 0;
   let lowConfidence = 0;
@@ -337,10 +338,10 @@ async function importSessionsOrPayments(args: {
 
     if (args.entityType === "sessions") {
       const teacherName = String(get(row, sources, "teacher_name") ?? "").trim() || null;
-      const teacher = await getOrCreateTutor(args.academyId, teacherName);
+      const teacher = await getOrCreateTutor(args.academyId, teacherName, db);
       const rawStatus = stringOrNull(get(row, sources, "attendance_status"));
       const attendanceStatus = normalizeStructuredAttendanceStatus(rawStatus);
-      await insertWithLegacyColumnFallback("Session", {
+      await insertWithLegacyColumnFallback(db, "Session", {
         id: crypto.randomUUID(),
         academyId: args.academyId,
         studentId: match.studentId,
@@ -364,7 +365,7 @@ async function importSessionsOrPayments(args: {
       const dueDate = normalizeDate(get(row, sources, "due_date")).value;
       const paidDate = normalizeDate(get(row, sources, "paid_date")).value;
       const paymentDate = paidDate ?? normalizeDate(get(row, sources, "payment_date")).value ?? normalizeDate(get(row, sources, "last_payment_date")).value;
-      await insertWithLegacyColumnFallback("Payment", {
+      await insertWithLegacyColumnFallback(db, "Payment", {
         id: crypto.randomUUID(),
         academyId: args.academyId,
         studentId: match.studentId,
@@ -415,7 +416,7 @@ function sessionsAreAggregate(sources: Map<string, string>): boolean {
 // Aggregate attendance has no per-class rows to count, so write the summary
 // fields straight onto the matched Student. The caller skips the session sync
 // (which recomputes from Session rows) so these values are not clobbered.
-async function importAggregateSessions(args: {
+async function importAggregateSessions(db: SupabaseClient<Database>, args: {
   academyId: string;
   uploadId: string;
   rows: Record<string, unknown>[];
@@ -423,7 +424,7 @@ async function importAggregateSessions(args: {
   identifier: IdentifierSelection;
 }): Promise<ImportReviewSummary> {
   const sources = sourceByField(args.mappings);
-  const students = await loadStudents(args.academyId);
+  const students = await loadStudents(db, args.academyId);
   const now = new Date().toISOString();
   let imported = 0;
   let unmatched = 0;
@@ -455,7 +456,7 @@ async function importAggregateSessions(args: {
     if (Object.keys(update).length > 1) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (db as any).from("Student").update(update).eq("id", match.studentId);
-      if (error) throw new Error(`Failed to update student attendance summary: ${error.message}`);
+      if (error) throw new Error(`Failed to update student attendance summary`);
       imported++;
     } else {
       unmatched++;
@@ -477,8 +478,10 @@ async function importAggregateSessions(args: {
 export async function processStructuredUpload(
   uploadId: string,
   academyId: string,
-  mode: "update" | "replace" = "update"
+  mode: "update" | "replace" = "update",
+  client?: SupabaseClient<Database>
 ) {
+  const db = client ?? adminDb;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: upload, error } = await (db as any)
     .from("Upload")
@@ -500,11 +503,11 @@ export async function processStructuredUpload(
     let summary: ImportReviewSummary;
     if (entityType === "students") {
       if (mode === "replace") {
-        await clearStudentDataForAcademy(academyId);
+        await clearStudentDataForAcademy(db, academyId);
       }
-      summary = await importStudents({ academyId, uploadId, rows, mappings });
+      summary = await importStudents(db, { academyId, uploadId, rows, mappings });
     } else if (entityType === "teachers") {
-      summary = await importTeachers({ academyId, rows, mappings });
+      summary = await importTeachers(db, { academyId, rows, mappings });
     } else {
       const identifier = upload.identifierJson as IdentifierSelection | null;
       if (!identifier) throw new Error("Student Identifier is required for sessions and payments");
@@ -523,9 +526,9 @@ export async function processStructuredUpload(
       if (aggregateSessions) {
         // Aggregate attendance is written straight to Student; no Session rows,
         // so we deliberately skip the per-event summary sync.
-        summary = await importAggregateSessions({ academyId, uploadId, rows, mappings, identifier });
+        summary = await importAggregateSessions(db, { academyId, uploadId, rows, mappings, identifier });
       } else {
-        summary = await importSessionsOrPayments({
+        summary = await importSessionsOrPayments(db, {
           academyId,
           uploadId,
           importSetId,
@@ -534,12 +537,12 @@ export async function processStructuredUpload(
           mappings,
           identifier,
         });
-        await syncStructuredStudentSummaries(academyId);
+        await syncStructuredStudentSummaries(db, academyId);
       }
     }
 
     const status = summary.unmatchedRows > 0 || summary.lowConfidenceRows > 0 ? "reviewed" : "imported";
-    await updateImportSetStatus(importSetId, entityType, status);
+    await updateImportSetStatus(db, importSetId, entityType, status);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (db as any).from("Upload").update({
       status: "PROCESSED",

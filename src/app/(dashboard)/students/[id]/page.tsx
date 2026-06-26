@@ -6,6 +6,7 @@ import RiskBadge from "@/components/ui/RiskBadge";
 import { AreaChart } from "@/components/ui/Charts";
 import { ActionStatusPanel } from "@/components/students/ActionStatusPanel";
 import { createClient } from "@/lib/supabase/server";
+import { getUserDb } from "@/lib/db/user-client";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getStudentDetail } from "@/lib/students/risk";
 import { getCurrencySymbol } from "@/lib/currency";
@@ -39,11 +40,12 @@ export default async function StudentProfilePage({ params }: Params) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) redirect("/onboarding");
 
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
-  const student = await getStudentDetail(dbUser.academy.id, id, currencySymbol);
+  const student = await getStudentDetail(dbUser.academy.id, id, currencySymbol, sb);
   if (!student) notFound();
 
   const trend = ["U1", "U2", "U3", "U4", "U5", "Now"].map((month) => ({

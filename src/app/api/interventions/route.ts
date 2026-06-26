@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getStudentRiskList } from "@/lib/students/risk";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
 import { getCurrencySymbol } from "@/lib/currency";
 
 const TERMINAL = new Set(["DONE", "STUDENT_SAVED", "STUDENT_LOST"]);
@@ -15,15 +15,16 @@ export async function GET() {
 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser?.academy) return NextResponse.json({ error: "Academy not found" }, { status: 404 });
 
   const academyId = dbUser.academy.id;
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
 
   const [students, actionsResult] = await Promise.all([
-    getStudentRiskList(academyId, {}, currencySymbol),
-    db
+    getStudentRiskList(academyId, {}, currencySymbol, sb),
+    sb
       .from("Action")
       .select(`id, type, content, status, notes, createdAt, studentId, Student(name)`)
       .eq("academyId", academyId)

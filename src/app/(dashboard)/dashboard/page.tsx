@@ -6,6 +6,7 @@ import Avatar from "@/components/ui/Avatar";
 import RiskBadge from "@/components/ui/RiskBadge";
 import { AreaChart, BarChart, RiskDonut } from "@/components/ui/Charts";
 import { createClient } from "@/lib/supabase/server";
+import { getUserDb } from "@/lib/db/user-client";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
 import { getDashboardCharts } from "@/lib/dashboard/charts";
@@ -22,12 +23,12 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser?.academy) redirect("/onboarding");
 
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
-  const { db } = await import("@/lib/db/client");
-  const { data: lastUpload } = await db
+  const { data: lastUpload } = await sb
     .from("Upload")
     .select("processedAt, fileName, rowCount")
     .eq("academyId", dbUser.academy.id)
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
     .limit(1)
     .maybeSingle();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: entityUploads } = await (db as any)
+  const { data: entityUploads } = await (sb as any)
     .from("Upload")
     .select("entityType, processedAt, uploadedAt")
     .eq("academyId", dbUser.academy.id)
@@ -46,17 +47,17 @@ export default async function DashboardPage() {
   const { academyHasDemoData } = await import("@/lib/demo/seed");
   const hasDemoData = await academyHasDemoData(dbUser.academy.id);
 
-  const summary = await getDashboardSummary(dbUser.academy.id);
-  const charts = await getDashboardCharts(dbUser.academy.id);
+  const summary = await getDashboardSummary(dbUser.academy.id, new Date(), sb);
+  const charts = await getDashboardCharts(dbUser.academy.id, sb);
   const allStudents = await getStudentRiskList(dbUser.academy.id, {
     sort: "riskScore",
     direction: "desc",
-  }, currencySymbol);
+  }, currencySymbol, sb);
   const atRisk = await getStudentRiskList(dbUser.academy.id, {
     band: "AT_RISK",
     sort: "riskScore",
     direction: "desc",
-  }, currencySymbol);
+  }, currencySymbol, sb);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";

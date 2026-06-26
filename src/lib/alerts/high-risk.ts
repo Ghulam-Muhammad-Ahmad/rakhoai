@@ -64,6 +64,6 @@ export async function queueHighRiskAlert(args: {
     .select("id")
     .single();
 
-  if (error) throw new Error(`Failed to queue high-risk alert: ${error.message}`);
+  if (error) throw new Error(`Failed to queue high-risk alert`);
   return data;
 }

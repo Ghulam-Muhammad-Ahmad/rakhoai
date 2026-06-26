@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getUserDb } from "@/lib/db/user-client";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getTutorStats } from "@/lib/tutors/tutors";
 import { getCurrencySymbol } from "@/lib/currency";
@@ -10,11 +11,12 @@ export default async function TutorsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) redirect("/onboarding");
 
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
-  const tutors = await getTutorStats(dbUser.academy.id);
+  const tutors = await getTutorStats(dbUser.academy.id, sb);
 
   return (
     <div className="page-fade">

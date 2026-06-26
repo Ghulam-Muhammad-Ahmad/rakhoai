@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -24,11 +24,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) return NextResponse.json({ error: "Academy not found" }, { status: 404 });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: student } = await (db as any)
+  const { data: student } = await (sb as any)
     .from("Student")
     .select("rawDataJson, uploadId")
     .eq("academyId", dbUser.academy.id)
@@ -40,7 +41,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   let mappedColumns = new Set<string>();
   if (student.uploadId) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: upload } = await (db as any)
+    const { data: upload } = await (sb as any)
       .from("Upload")
       .select("mappingJson")
       .eq("id", student.uploadId)

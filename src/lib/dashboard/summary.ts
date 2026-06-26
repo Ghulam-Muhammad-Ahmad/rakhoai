@@ -1,4 +1,6 @@
-import { db } from "@/lib/db/client";
+import { adminDb } from "@/lib/db/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/db/database.types";
 
 export type DashboardSummary = {
   totalStudents: number;
@@ -17,8 +19,10 @@ function startOfMonth(date: Date): string {
 
 export async function getDashboardSummary(
   academyId: string,
-  now = new Date()
+  now = new Date(),
+  client?: SupabaseClient<Database>
 ): Promise<DashboardSummary> {
+  const db = client ?? adminDb;
   // Fetch all students with their latest risk assessment
   type StudentRow = {
     id: string;
@@ -40,7 +44,7 @@ export async function getDashboardSummary(
     .order("computedAt", { referencedTable: "RiskAssessment", ascending: false })
     .limit(1, { referencedTable: "RiskAssessment" });
 
-  if (error) throw new Error(`Failed to fetch students: ${error.message}`);
+  if (error) throw new Error(`Failed to fetch students`);
 
   const students = (rawStudents ?? []) as unknown as StudentRow[];
 

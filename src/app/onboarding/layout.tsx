@@ -26,7 +26,7 @@ export default async function OnboardingLayout({
     redirect("/login");
   }
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const dbUser = await getAuthUserWithAcademy(user.id, supabase);
   if (dbUser.academy) {
     redirect("/dashboard");
   }

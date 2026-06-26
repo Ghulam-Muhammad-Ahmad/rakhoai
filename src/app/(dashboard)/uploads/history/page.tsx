@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
 import type { EntityType, ImportReviewSummary } from "@/lib/imports/types";
 
 type EntityStatus = "missing" | "mapped" | "imported" | "reviewed";
@@ -76,13 +76,14 @@ export default async function ImportHistoryPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) redirect("/onboarding");
 
   const academyId = dbUser.academy.id;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: sets, error: setsError } = await (db as any)
+  const { data: sets, error: setsError } = await (sb as any)
     .from("ImportSet")
     .select("id, name, studentsStatus, teachersStatus, sessionsStatus, paymentsStatus, createdAt, updatedAt")
     .eq("academyId", academyId)
@@ -90,12 +91,12 @@ export default async function ImportHistoryPage() {
   if (setsError) throw new Error(`Failed to load import sets: ${setsError.message}`);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: uploads, error } = await (db as any)
+  const { data: uploads, error } = await (sb as any)
     .from("Upload")
     .select("id, importSetId, fileName, entityType, status, processedAt, uploadedAt, rowCount, reviewJson")
     .eq("academyId", academyId)
     .order("uploadedAt", { ascending: false }) as { data: UploadHistoryRow[] | null; error: { message: string } | null };
-  if (error) throw new Error(`Failed to load import history: ${error.message}`);
+  if (error) throw new Error(`Failed to load import history`);
 
   const uploadsBySet = new Map<string, UploadHistoryRow[]>();
   const ungrouped: UploadHistoryRow[] = [];

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
 import crypto from "node:crypto";
 
 const schema = z.object({
@@ -27,14 +27,16 @@ export async function POST(req: NextRequest) {
 
   const { name, country, currency } = parsed.data;
 
-  const { data: existingAcademy } = await db
+  const sb = await getUserDb();
+
+  const { data: existingAcademy } = await sb
     .from("Academy")
     .select("id")
     .eq("ownerId", user.id)
     .maybeSingle();
 
   if (existingAcademy) {
-    const { data: academy, error } = await db
+    const { data: academy, error } = await sb
       .from("Academy")
       .update({ name, country, currency })
       .eq("id", existingAcademy.id)
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ academy });
   }
 
-  const { data: academy, error } = await db.from("Academy").insert({
+  const { data: academy, error } = await sb.from("Academy").insert({
     id: crypto.randomUUID(),
     ownerId: user.id,
     name,

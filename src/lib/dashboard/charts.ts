@@ -1,5 +1,7 @@
 import { getStudentRiskList } from "@/lib/students/risk";
-import { db } from "@/lib/db/client";
+import { adminDb } from "@/lib/db/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/db/database.types";
 import {
   buildAttendanceDistribution,
   buildRiskBreakdown,
@@ -8,13 +10,17 @@ import {
   type RetentionAssessmentRow,
 } from "./charts-core";
 
-async function getRetentionAssessments(academyId: string): Promise<RetentionAssessmentRow[]> {
+async function getRetentionAssessments(
+  academyId: string,
+  client?: SupabaseClient<Database>
+): Promise<RetentionAssessmentRow[]> {
+  const db = client ?? adminDb;
   const { data, error } = await db
     .from("Student")
     .select("riskAssessments:RiskAssessment(studentId, riskBand, computedAt)")
     .eq("academyId", academyId);
 
-  if (error) throw new Error(`Failed to fetch retention data: ${error.message}`);
+  if (error) throw new Error(`Failed to fetch retention data`);
 
   return (data ?? []).flatMap(
     (s: { riskAssessments?: RetentionAssessmentRow[] | null }) =>
@@ -22,10 +28,13 @@ async function getRetentionAssessments(academyId: string): Promise<RetentionAsse
   );
 }
 
-export async function getDashboardCharts(academyId: string) {
+export async function getDashboardCharts(
+  academyId: string,
+  client?: SupabaseClient<Database>
+) {
   const [students, assessments] = await Promise.all([
-    getStudentRiskList(academyId, { sort: "riskScore", direction: "desc" }),
-    getRetentionAssessments(academyId),
+    getStudentRiskList(academyId, { sort: "riskScore", direction: "desc" }, "$", client),
+    getRetentionAssessments(academyId, client),
   ]);
 
   const rows = students.map((student) => ({

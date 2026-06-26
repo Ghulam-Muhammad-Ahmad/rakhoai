@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   // Dev fallback: server-side IP lookup (not subject to browser CSP)
   try {
-    const res = await fetch("http://ip-api.com/json/?fields=status,countryCode", {
+    const res = await fetch("https://ip-api.com/json/?fields=status,countryCode", {
       signal: AbortSignal.timeout(4000),
       cache: "no-store",
     });

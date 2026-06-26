@@ -7,13 +7,16 @@ export async function GET(request: Request) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
 
+  // Validate next parameter to prevent open redirects
+  const safeNext = /^\/[a-zA-Z0-9_/-]*$/.test(next) ? next : '/dashboard'
+
   if (code) {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && data.user) {
       try {
         const dbUser = await getAuthUserWithAcademy(data.user.id)
-        const redirectTo = dbUser.academy ? next : '/onboarding'
+        const redirectTo = dbUser.academy ? safeNext : '/onboarding'
         return NextResponse.redirect(`${origin}${redirectTo}`)
       } catch {
         // DB error — session is valid, send to onboarding as safe default

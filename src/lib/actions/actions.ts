@@ -1,11 +1,17 @@
 import crypto from "node:crypto";
-import { db } from "@/lib/db/client";
+import { adminDb } from "@/lib/db/client";
 import type { Database } from "@/lib/db/database.types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildActionStatusUpdate, isActionStatus, type ActionStatus } from "./action-core";
 
 type ActionRow = Database["public"]["Tables"]["Action"]["Row"];
 
-export async function assertStudentBelongsToAcademy(studentId: string, academyId: string) {
+export async function assertStudentBelongsToAcademy(
+  studentId: string,
+  academyId: string,
+  client?: SupabaseClient<Database>
+) {
+  const db = client ?? adminDb;
   const { data, error } = await db
     .from("Student")
     .select("id")
@@ -13,7 +19,7 @@ export async function assertStudentBelongsToAcademy(studentId: string, academyId
     .eq("academyId", academyId)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to verify student ownership: ${error.message}`);
+  if (error) throw new Error(`Failed to verify student ownership`);
   if (!data) throw new Error("Student not found");
 }
 
@@ -25,9 +31,10 @@ export async function createAction(args: {
   content?: string | null;
   status?: ActionStatus;
   notes?: string | null;
-}): Promise<ActionRow> {
+}, client?: SupabaseClient<Database>): Promise<ActionRow> {
+  const db = client ?? adminDb;
   if (args.status && !isActionStatus(args.status)) throw new Error("Invalid action status");
-  await assertStudentBelongsToAcademy(args.studentId, args.academyId);
+  await assertStudentBelongsToAcademy(args.studentId, args.academyId, client);
 
   const now = new Date().toISOString();
   const status = args.status ?? "PENDING";
@@ -49,7 +56,7 @@ export async function createAction(args: {
     .select("*")
     .single();
 
-  if (error) throw new Error(`Failed to create action: ${error.message}`);
+  if (error) throw new Error(`Failed to create action`);
   return data;
 }
 
@@ -60,7 +67,8 @@ export async function updateActionStatus(args: {
   notes?: string | null;
   type?: string | null;
   content?: string | null;
-}): Promise<ActionRow> {
+}, client?: SupabaseClient<Database>): Promise<ActionRow> {
+  const db = client ?? adminDb;
   if (!isActionStatus(args.status)) throw new Error("Invalid action status");
 
   const { data: existing, error: fetchError } = await db
@@ -70,7 +78,7 @@ export async function updateActionStatus(args: {
     .eq("academyId", args.academyId)
     .maybeSingle();
 
-  if (fetchError) throw new Error(`Failed to fetch action: ${fetchError.message}`);
+  if (fetchError) throw new Error(`Failed to fetch action`);
   if (!existing) throw new Error("Action not found");
 
   const update = buildActionStatusUpdate({ status: args.status, notes: args.notes });
@@ -87,6 +95,6 @@ export async function updateActionStatus(args: {
     .select("*")
     .single();
 
-  if (error) throw new Error(`Failed to update action: ${error.message}`);
+  if (error) throw new Error(`Failed to update action`);
   return data;
 }

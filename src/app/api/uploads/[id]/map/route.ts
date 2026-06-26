@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/db/database.types";
 import { getAcademyIdForSupabaseUser } from "@/lib/db/auth-user";
 import { runMapping, MappingResult } from "@/lib/matching";
 import { getIdentifierQuality } from "@/lib/imports/identifiers";
@@ -13,8 +15,8 @@ import { processStructuredUpload } from "@/lib/imports/process-upload";
 
 type Params = { params: Promise<{ id: string }> };
 
-async function getAuthorizedUpload(uploadId: string, supabaseUserId: string) {
-  const academyId = await getAcademyIdForSupabaseUser(supabaseUserId);
+async function getAuthorizedUpload(db: SupabaseClient<Database>, uploadId: string, supabaseUserId: string) {
+  const academyId = await getAcademyIdForSupabaseUser(supabaseUserId, db);
   if (!academyId) return null;
 
   const { data: upload } = await db
@@ -33,12 +35,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const ctx = await getAuthorizedUpload(id, user.id);
+  const sb = await getUserDb();
+  const ctx = await getAuthorizedUpload(sb, id, user.id);
   if (!ctx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const { upload, academyId } = ctx;
 
-  const { data: templates, error: templatesError } = await db
+  const { data: templates, error: templatesError } = await sb
     .from("ColumnMapping")
     .select("id, name, isDefault, mappingJson")
     .eq("academyId", academyId)
@@ -66,7 +69,8 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const ctx = await getAuthorizedUpload(id, user.id);
+  const sb = await getUserDb();
+  const ctx = await getAuthorizedUpload(sb, id, user.id);
   if (!ctx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const { upload, academyId } = ctx;
@@ -78,7 +82,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const headers = upload.headers as string[];
   const sampleRows = upload.sampleRows as Record<string, string>[];
 
-  const { data: defaultTemplate } = await db
+  const { data: defaultTemplate } = await sb
     .from("ColumnMapping")
     .select("mappingJson")
     .eq("academyId", academyId)
@@ -103,7 +107,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const mappings = await runMapping(headers, sampleRows, upload.id, templateMap, entityType);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (db as any)
+  const { error: updateError } = await (sb as any)
     .from("Upload")
     .update({ mappingJson: mappings as unknown as Json })
     .eq("id", upload.id);
@@ -139,7 +143,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const ctx = await getAuthorizedUpload(id, user.id);
+  const sb = await getUserDb();
+  const ctx = await getAuthorizedUpload(sb, id, user.id);
   if (!ctx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const { upload, academyId } = ctx;
@@ -195,7 +200,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (db as any)
+  const { error: updateError } = await (sb as any)
     .from("Upload")
     .update({ mappingJson: updated as unknown as Json, identifierJson: identifierJson as unknown as Json, status: "MAPPED" })
     .eq("id", upload.id);
@@ -203,7 +208,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (updateError) return NextResponse.json({ error: "Failed to confirm mapping" }, { status: 500 });
   if (upload.importSetId) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (db as any).from("ImportSet").update({
+    await (sb as any).from("ImportSet").update({
       [`${entityType}Status`]: "mapped",
       updatedAt: new Date().toISOString(),
     }).eq("id", upload.importSetId);
@@ -215,14 +220,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
 
     if (body.setAsDefault) {
-      await db
+      await sb
         .from("ColumnMapping")
         .update({ isDefault: false })
         .eq("academyId", academyId)
         .eq("isDefault", true);
     }
 
-    const { error: templateError } = await db.from("ColumnMapping").insert({
+    const { error: templateError } = await sb.from("ColumnMapping").insert({
       id: crypto.randomUUID(),
       academyId,
       name: body.templateName,
@@ -237,7 +242,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (body.processNow) {
     try {
-      const processing = await processStructuredUpload(upload.id, academyId);
+      const processing = await processStructuredUpload(upload.id, academyId, "update", sb);
       return NextResponse.json({
         mappings: updated,
         status: "PROCESSED",

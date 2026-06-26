@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
-import { db } from "@/lib/db/client";
-import type { Json } from "@/lib/db/database.types";
+import { adminDb } from "@/lib/db/client";
+import type { Database, Json } from "@/lib/db/database.types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeRuleScore, getRiskBand } from "./rules";
 import { buildStructuredStudentSignals, getStructuredRiskConfidence } from "./structured-core";
 import type { StructuredPaymentRow, StructuredSessionRow, StructuredStudentRow } from "./structured-core";
@@ -20,7 +21,8 @@ function latestDateFromUploads(rows: Array<{ processedAt: string | null; uploade
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 }
 
-export async function runStructuredRiskScoring(academyId: string, uploadId: string | null = null) {
+export async function runStructuredRiskScoring(academyId: string, uploadId: string | null = null, client?: SupabaseClient<Database>) {
+  const db = client ?? adminDb;
   const { data: students, error: studentsError } = await db
     .from("Student")
     .select("id, name, externalId, contact, subject, tutor, feesAmount, rawDataJson, attendanceRate, lastSessionDate, paymentStatus, lastPaymentDate, totalSessions")

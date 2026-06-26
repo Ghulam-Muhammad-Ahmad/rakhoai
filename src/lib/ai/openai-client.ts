@@ -24,6 +24,27 @@ function resolveModel(requested?: string): string | undefined {
   return process.env.OPENAI_MODEL || requested;
 }
 
+function sanitizeErrorCode(name: string): string {
+  // Whitelist known-safe error names; everything else is scrubbed.
+  const safe = new Set([
+    "Error",
+    "TypeError",
+    "RangeError",
+    "ReferenceError",
+    "SyntaxError",
+    "APIError",
+    "AuthenticationError",
+    "PermissionDeniedError",
+    "RateLimitError",
+    "BadRequestError",
+    "ConflictError",
+    "InternalServerError",
+    "NotFoundError",
+    "UnprocessableEntityError",
+  ]);
+  return safe.has(name) ? name : "ExternalApiError";
+}
+
 export async function createLoggedChatCompletion(args: {
   academyId?: string | null;
   uploadId?: string | null;
@@ -63,7 +84,7 @@ export async function createLoggedChatCompletion(args: {
       model: args.model,
       payloadForHash: args.payloadForHash,
       status: "error",
-      errorCode: error instanceof Error ? error.name : "UnknownError",
+      errorCode: error instanceof Error ? sanitizeErrorCode(error.name) : "UnknownError",
       latencyMs: Date.now() - started,
     });
     throw error;

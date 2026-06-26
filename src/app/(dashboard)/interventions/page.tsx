@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getStudentRiskList } from "@/lib/students/risk";
 import { getCurrencySymbol } from "@/lib/currency";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
 import InterventionsClient, { type PendingIntervention, type SentAction } from "@/components/dashboard/InterventionsClient";
 
 const TERMINAL = new Set(["DONE", "STUDENT_SAVED", "STUDENT_LOST"]);
@@ -36,15 +36,16 @@ export default async function InterventionsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser?.academy) redirect("/onboarding");
 
   const academyId = dbUser.academy.id;
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
 
   const [students, actionsResult] = await Promise.all([
-    getStudentRiskList(academyId, {}, currencySymbol),
-    db
+    getStudentRiskList(academyId, {}, currencySymbol, sb),
+    sb
       .from("Action")
       .select(`
         id,

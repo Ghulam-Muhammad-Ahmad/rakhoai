@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { StudentsFilterBar } from "@/components/students/StudentsFilterBar";
 import { StudentsBulkTable } from "@/components/students/StudentsBulkTable";
 import { createClient } from "@/lib/supabase/server";
+import { getUserDb } from "@/lib/db/user-client";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { getStudentRiskList } from "@/lib/students/risk";
 import { getCurrencySymbol } from "@/lib/currency";
@@ -41,11 +42,12 @@ export default async function StudentsPage({ searchParams }: { searchParams: Sea
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) redirect("/onboarding");
 
   const currencySymbol = getCurrencySymbol(dbUser.academy.currency);
-  const allStudents = await getStudentRiskList(dbUser.academy.id, { sort: "riskScore", direction: "desc" }, currencySymbol);
+  const allStudents = await getStudentRiskList(dbUser.academy.id, { sort: "riskScore", direction: "desc" }, currencySymbol, sb);
   const students = await getStudentRiskList(dbUser.academy.id, {
     band: parseBand(first(params.band)),
     tutor: first(params.tutor),
@@ -53,7 +55,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Sea
     query: first(params.q),
     sort: parseSort(first(params.sort)),
     direction: parseDirection(first(params.direction)),
-  }, currencySymbol);
+  }, currencySymbol, sb);
 
   return (
     <div className="page-fade">

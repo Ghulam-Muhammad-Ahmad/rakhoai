@@ -10,7 +10,7 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const dbUser = await getAuthUserWithAcademy(user.id, supabase);
   if (!dbUser.academy) redirect("/onboarding");
 
   return (

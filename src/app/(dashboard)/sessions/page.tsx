@@ -3,7 +3,7 @@ import { Upload } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
 import { SessionsBulkTable, type SessionTableRow } from "@/components/dashboard/SessionsBulkTable";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -18,14 +18,15 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) redirect("/onboarding");
 
   const query = first(params.q).toLowerCase();
   const statusFilter = first(params.status).toLowerCase();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (db as any)
+  const { data, error } = await (sb as any)
     .from("Session")
     .select(`
       id,
@@ -55,7 +56,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
   let summaryRows: AttendanceSummary[] = [];
   if (!error && !hasAnyEvents) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: students } = await (db as any)
+    const { data: students } = await (sb as any)
       .from("Student")
       .select("id, name, externalId, attendanceRate, totalSessions, lastSessionDate")
       .eq("academyId", dbUser.academy.id) as { data: AttendanceSummary[] | null };

@@ -1,5 +1,6 @@
-import { db } from "@/lib/db/client";
+import { adminDb } from "@/lib/db/client";
 import type { Database, Json } from "@/lib/db/database.types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   filterAndSortStudentRiskRows,
   getInitials,
@@ -136,8 +137,10 @@ function toFilterableRow(item: StudentRiskListItem) {
 export async function getStudentRiskList(
   academyId: string,
   filters: StudentRiskFilters = {},
-  currencySymbol = "$"
+  currencySymbol = "$",
+  client?: SupabaseClient<Database>
 ): Promise<StudentRiskListItem[]> {
+  const db = client ?? adminDb;
   // Only the latest risk assessment per student is needed for the list (the
   // rest is history); ordering + limiting the embedded resource at the DB avoids
   // pulling every assessment row into memory.
@@ -153,7 +156,7 @@ export async function getStudentRiskList(
     .limit(1, { referencedTable: "RiskAssessment" })
     .order("updatedAt", { ascending: false });
 
-  if (error) throw new Error(`Failed to fetch students: ${error.message}`);
+  if (error) throw new Error(`Failed to fetch students`);
 
   const items = ((data ?? []) as unknown as StudentWithRelations[]).map((row) => toListItem(row, currencySymbol));
   const filtered = filterAndSortStudentRiskRows(items.map(toFilterableRow), filters);
@@ -167,8 +170,10 @@ export async function getStudentRiskList(
 export async function getStudentDetail(
   academyId: string,
   studentId: string,
-  currencySymbol = "$"
+  currencySymbol = "$",
+  client?: SupabaseClient<Database>
 ): Promise<StudentDetail | null> {
+  const db = client ?? adminDb;
   const { data, error } = await db
     .from("Student")
     .select(`
@@ -180,7 +185,7 @@ export async function getStudentDetail(
     .eq("id", studentId)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to fetch student: ${error.message}`);
+  if (error) throw new Error(`Failed to fetch student`);
   if (!data) return null;
 
   const row = data as unknown as StudentWithRelations;

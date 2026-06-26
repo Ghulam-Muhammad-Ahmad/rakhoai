@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
 import { UploadStepper } from "@/components/upload/UploadStepper";
 import { MappingLoader } from "@/components/mapping/MappingLoader";
 import { detectImportFormat } from "@/lib/imports/formats";
@@ -20,11 +20,12 @@ export default async function MapPage({ params }: { params: Promise<{ id: string
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser?.academy) redirect("/onboarding");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: upload } = await (db as any)
+  const { data: upload } = await (sb as any)
     .from("Upload")
     .select("id, academyId, status, headers, sampleRows, rawRowsJson, rowCount, entityType, formatType, identifierJson")
     .eq("id", id)
@@ -56,7 +57,7 @@ export default async function MapPage({ params }: { params: Promise<{ id: string
   const rawRows = (upload.rawRowsJson as unknown[] | null) ?? [];
   const rowCount = upload.rowCount ?? rawRows.length;
 
-  const { data: templates } = await db
+  const { data: templates } = await sb
     .from("ColumnMapping")
     .select("id, name, isDefault, mappingJson")
     .eq("academyId", dbUser.academy.id)

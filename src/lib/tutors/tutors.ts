@@ -1,9 +1,16 @@
 import crypto from "node:crypto";
-import { db } from "@/lib/db/client";
+import { adminDb } from "@/lib/db/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/db/database.types";
 import { getStudentRiskList } from "@/lib/students/risk";
 import { buildTutorStats } from "./tutor-core";
 
-export async function getOrCreateTutor(academyId: string, name: string | null | undefined) {
+export async function getOrCreateTutor(
+  academyId: string,
+  name: string | null | undefined,
+  client?: SupabaseClient<Database>
+) {
+  const db = client ?? adminDb;
   const cleanName = name?.trim();
   if (!cleanName) return null;
 
@@ -27,15 +34,18 @@ export async function getOrCreateTutor(academyId: string, name: string | null | 
     })
     .select("id")
     .single() as { data: { id: string } | null; error: { message: string } | null };
-  if (error) throw new Error(`Failed to create tutor: ${error.message}`);
+  if (error) throw new Error(`Failed to create tutor`);
   return data;
 }
 
-export async function getTutorStats(academyId: string) {
+export async function getTutorStats(
+  academyId: string,
+  client?: SupabaseClient<Database>
+) {
   const students = await getStudentRiskList(academyId, {
     sort: "riskScore",
     direction: "desc",
-  });
+  }, "$", client);
 
   return buildTutorStats(
     students.map((student) => ({

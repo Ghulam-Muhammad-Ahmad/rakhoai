@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/db/database.types";
 import { getAcademyIdForSupabaseUser } from "@/lib/db/auth-user";
 import { parseFile } from "@/lib/parsers";
 import { detectImportFormat } from "@/lib/imports/formats";
 import type { EntityType } from "@/lib/imports/types";
+import { validateFileContent } from "@/lib/file-validation";
 import crypto from "node:crypto";
 
 const ALLOWED_TYPES = ["csv", "xlsx", "xls"];
@@ -20,7 +23,7 @@ function getAdminStorageClient() {
   );
 }
 
-async function getOrCreateOpenImportSet(academyId: string) {
+async function getOrCreateOpenImportSet(db: SupabaseClient<Database>, academyId: string) {
   // Completed status — all four entity columns at 'imported' means the set is done.
   // We only reuse a set that has NOT reached the terminal 'imported' state on every
   // entity column, i.e. at least one column is still open (missing/uploaded/mapped/
@@ -67,7 +70,7 @@ async function getOrCreateOpenImportSet(academyId: string) {
       .limit(1)
       .single() as { data: { id: string } | null };
     if (retry) return retry.id;
-    throw new Error(`Failed to create import set: ${insertError.message}`);
+    throw new Error(`Failed to create import set`);
   }
   return inserted!.id;
 }
@@ -78,11 +81,12 @@ export async function POST(req: NextRequest) {
 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const academyId = await getAcademyIdForSupabaseUser(user.id);
+  const sb = await getUserDb();
+  const academyId = await getAcademyIdForSupabaseUser(user.id, sb);
   if (!academyId) return NextResponse.json({ error: "Academy not found" }, { status: 400 });
 
   // Block if a scoring job is already running
-  const { data: activeJob } = await db
+  const { data: activeJob } = await sb
     .from("Upload")
     .select("id, fileName")
     .eq("academyId", academyId)
@@ -123,6 +127,13 @@ export async function POST(req: NextRequest) {
 
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
+
+  // Validate actual file content (magic bytes / structure), not just extension.
+  const validation = validateFileContent(buffer, ext);
+  if (!validation.valid) {
+    return NextResponse.json({ error: `File content does not match expected ${ext.toUpperCase()} format` }, { status: 400 });
+  }
+
   const requestedSheet = String(formData.get("sheet") ?? "").trim() || undefined;
 
   let parsed;
@@ -152,7 +163,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (entityType === "sessions" || entityType === "payments") {
-    const { count } = await db
+    const { count } = await sb
       .from("Student")
       .select("id", { count: "exact", head: true })
       .eq("academyId", academyId);
@@ -167,7 +178,7 @@ export async function POST(req: NextRequest) {
   const uploadId = crypto.randomUUID();
   let importSetId = importSetIdFromForm;
   try {
-    importSetId = importSetId || await getOrCreateOpenImportSet(academyId);
+    importSetId = importSetId || await getOrCreateOpenImportSet(sb, academyId);
   } catch (err) {
     return NextResponse.json({
       error: err instanceof Error ? err.message : "Failed to prepare import set",
@@ -175,7 +186,7 @@ export async function POST(req: NextRequest) {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: insertError } = await (db as any).from("Upload").insert({
+  const { error: insertError } = await (sb as any).from("Upload").insert({
     id: uploadId,
     academyId,
     importSetId,
@@ -197,18 +208,18 @@ export async function POST(req: NextRequest) {
   const { error: storageError } = await adminClient.storage
     .from("uploads")
     .upload(storagePath, buffer, {
-      contentType: file.type || "application/octet-stream",
+      contentType: validation.mimeType,
       upsert: false,
     });
 
   if (storageError) {
     console.error("Storage upload failed:", storageError.message);
-    await db.from("Upload").update({ status: "FAILED" }).eq("id", uploadId);
+    await sb.from("Upload").update({ status: "FAILED" }).eq("id", uploadId);
     return NextResponse.json({ error: "Failed to store uploaded file" }, { status: 502 });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: updated, error: updateError } = await (db as any)
+  const { data: updated, error: updateError } = await (sb as any)
     .from("Upload")
     .update({
       fileUrl: storagePath,
@@ -231,7 +242,7 @@ export async function POST(req: NextRequest) {
 
   const statusColumn = `${entityType}Status`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (db as any).from("ImportSet").update({
+  await (sb as any).from("ImportSet").update({
     [statusColumn]: "uploaded",
     updatedAt: new Date().toISOString(),
   }).eq("id", importSetId);

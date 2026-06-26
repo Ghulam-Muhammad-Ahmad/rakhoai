@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUserDb } from "@/lib/db/user-client";
 import { getAuthUserWithAcademy } from "@/lib/db/auth-user";
 import { updateActionStatus } from "@/lib/actions/actions";
 import { isActionStatus } from "@/lib/actions/action-core";
@@ -27,7 +28,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) {
     return NextResponse.json({ error: "Academy not found" }, { status: 404 });
   }
@@ -45,7 +47,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       notes: typeof body.notes === "string" ? body.notes : null,
       type: typeof body.type === "string" ? body.type : null,
       content: typeof body.content === "string" ? body.content : null,
-    });
+    }, sb);
 
     revalidateActionPaths(action.studentId);
     return NextResponse.json({ action });
@@ -66,16 +68,16 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const dbUser = await getAuthUserWithAcademy(user.id);
+  const sb = await getUserDb();
+  const dbUser = await getAuthUserWithAcademy(user.id, sb);
   if (!dbUser.academy) {
     return NextResponse.json({ error: "Academy not found" }, { status: 404 });
   }
 
   try {
-    const { db } = await import("@/lib/db/client");
-    const { data: existing } = await db
+    const { data: existing } = await sb
       .from("Action").select("studentId").eq("id", id).eq("academyId", dbUser.academy.id).maybeSingle();
-    const result = await deleteActionsForAcademy(dbUser.academy.id, [id]);
+    const result = await deleteActionsForAcademy(dbUser.academy.id, [id], sb);
     if (result.deleted === 0) return NextResponse.json({ error: "Action not found" }, { status: 404 });
     revalidateActionPaths(existing?.studentId);
     return NextResponse.json({ result });

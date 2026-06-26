@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
 import { getAcademyIdForSupabaseUser } from "@/lib/db/auth-user";
 import { MappingResult } from "@/lib/matching";
 import { normalizeRows } from "@/lib/scoring/normalize";
@@ -28,11 +28,12 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const academyId = await getAcademyIdForSupabaseUser(user.id);
+  const sb = await getUserDb();
+  const academyId = await getAcademyIdForSupabaseUser(user.id, sb);
   if (!academyId) return NextResponse.json({ error: "Academy not found" }, { status: 404 });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: upload } = await (db as any)
+  const { data: upload } = await (sb as any)
     .from("Upload")
     .select("*")
     .eq("id", id)
@@ -63,7 +64,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
     if (entityType === "sessions" || entityType === "payments") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: students } = await (db as any)
+      const { data: students } = await (sb as any)
         .from("Student")
         .select("id, externalId, name, contact")
         .eq("academyId", academyId) as { data: ExistingStudentForMatch[] | null };
@@ -102,7 +103,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const { students, summaries } = await normalizeRows(rows, mappings, { academyId, uploadId: id });
   const sources = sourceByField(mappings);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: existingStudents } = await (db as any)
+  const { data: existingStudents } = await (sb as any)
     .from("Student")
     .select("id, externalId, name, contact")
     .eq("academyId", academyId) as { data: ExistingStudentForMatch[] | null };

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/lib/db/client";
+import { adminDb } from "@/lib/db/client";
+import { getUserDb } from "@/lib/db/user-client";
 import { getAcademyIdForSupabaseUser } from "@/lib/db/auth-user";
 import { processStructuredUpload } from "@/lib/imports/process-upload";
 
@@ -14,7 +15,8 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const academyId = await getAcademyIdForSupabaseUser(user.id);
+  const sb = await getUserDb();
+  const academyId = await getAcademyIdForSupabaseUser(user.id, sb);
   if (!academyId) return NextResponse.json({ error: "Academy not found" }, { status: 404 });
 
   let mode: "update" | "replace" = "update";
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     // no body — default update
   }
 
-  const { data: upload } = await db
+  const { data: upload } = await sb
     .from("Upload")
     .select("id, status, academyId")
     .eq("id", id)
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   // Atomically flip MAPPED -> PROCESSING. The WHERE on status closes the TOCTOU
   // window: only one concurrent request wins; the rest get no row back.
-  const { data: claimed } = await db
+  const { data: claimed } = await sb
     .from("Upload")
     .update({ status: "PROCESSING" })
     .eq("id", id)
@@ -57,7 +59,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ status: "PROCESSING" }, { status: 202 });
   }
 
-  // Score in background — returns 202 immediately
+  // Score in background — returns 202 immediately.
+  // The cookie-scoped user client is not valid once the response has been sent,
+  // so the background job runs on the service-role client.
   after(async () => {
     try {
       // Cap the background job so a hung dependency can't pin the upload in
@@ -68,7 +72,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       await Promise.race([processStructuredUpload(id, academyId, mode), timeout]);
     } catch (err) {
       console.error("Background scoring failed for upload", id, err);
-      await db.from("Upload").update({ status: "FAILED" }).eq("id", id);
+      await adminDb.from("Upload").update({ status: "FAILED" }).eq("id", id);
     }
   });
 

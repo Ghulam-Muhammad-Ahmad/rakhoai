@@ -107,7 +107,7 @@ export async function academyHasStudents(academyId: string): Promise<boolean> {
     .from("Student")
     .select("id", { count: "exact", head: true })
     .eq("academyId", academyId);
-  if (error) throw new Error(`Failed to count students: ${error.message}`);
+  if (error) throw new Error(`Failed to count students`);
   return (count ?? 0) > 0;
 }
 
@@ -118,7 +118,7 @@ export async function academyHasDemoData(academyId: string): Promise<boolean> {
     .eq("academyId", academyId)
     .contains("rawDataJson", { [DEMO_TAG]: true })
     .limit(1);
-  if (error) throw new Error(`Failed to check demo data: ${error.message}`);
+  if (error) throw new Error(`Failed to check demo data`);
   return (data?.length ?? 0) > 0;
 }
 
@@ -142,7 +142,7 @@ export async function seedDemoData(academyId: string) {
       processedAt: now,
       mappingJson: { [DEMO_TAG]: true },
     });
-    if (error) throw new Error(`Failed to create demo upload (${entityType}): ${error.message}`);
+    if (error) throw new Error(`Failed to create demo upload (${entityType})`);
   }
 
   let sessionsCreated = 0;
@@ -216,7 +216,7 @@ export async function seedDemoData(academyId: string) {
         durationMinutes: 60,
         rawDataJson: { [DEMO_TAG]: true } as Json,
       });
-      if (error) throw new Error(`Failed to create demo session: ${error.message}`);
+      if (error) throw new Error(`Failed to create demo session`);
       sessionsCreated++;
     }
 
@@ -250,7 +250,7 @@ export async function seedDemoData(academyId: string) {
         method: paidDate ? "cash" : null,
         rawDataJson: { [DEMO_TAG]: true } as Json,
       });
-      if (error) throw new Error(`Failed to create demo payment: ${error.message}`);
+      if (error) throw new Error(`Failed to create demo payment`);
       paymentsCreated++;
     }
   }

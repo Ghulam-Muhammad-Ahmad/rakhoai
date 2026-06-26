@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthUserWithAcademy } from '@/lib/db/auth-user'
 import { headers } from 'next/headers'
+import { checkAuthRateLimit } from '@/lib/rate-limit'
 
 const signUpSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120, 'Name is too long'),
@@ -25,6 +26,13 @@ async function getRedirectForUser(authUserId: string) {
 export async function signUp(formData: FormData) {
   const supabase = await createClient()
   const origin = (await headers()).get('origin')
+  const forwardedFor = (await headers()).get('x-forwarded-for') ?? 'unknown'
+  const clientIp = forwardedFor.split(',')[0].trim()
+
+  const limit = await checkAuthRateLimit(clientIp)
+  if (!limit.success) {
+    redirect(`/signup?error=${encodeURIComponent('Too many attempts. Please try again later.')}`)
+  }
 
   const parsed = signUpSchema.safeParse({
     name: formData.get('name'),
@@ -47,21 +55,22 @@ export async function signUp(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error.message)}`)
+    redirect(`/signup?error=${encodeURIComponent('Sign-up failed')}`)
   }
 
-  // Email confirmation disabled: session returned immediately.
-  if (data.session && data.user) {
-    const dest = await getRedirectForUser(data.user.id)
-    redirect(dest)
-  }
-
-  // Email confirmation enabled: ask user to check email.
+  // Email confirmation required — never grant session before verification.
   redirect('/signup?message=Check+your+email+to+confirm+your+account')
 }
 
 export async function signIn(formData: FormData) {
   const supabase = await createClient()
+  const forwardedFor = (await headers()).get('x-forwarded-for') ?? 'unknown'
+  const clientIp = forwardedFor.split(',')[0].trim()
+
+  const limit = await checkAuthRateLimit(clientIp)
+  if (!limit.success) {
+    redirect(`/login?error=${encodeURIComponent('Too many attempts. Please try again later.')}`)
+  }
 
   const parsed = signInSchema.safeParse({
     email: formData.get('email'),
@@ -76,7 +85,7 @@ export async function signIn(formData: FormData) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+    redirect(`/login?error=${encodeURIComponent('Sign-in failed')}`)
   }
 
   const dest = await getRedirectForUser(data.user.id)
