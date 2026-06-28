@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
     .neq("status", "FAILED");
   if ((existingOfType ?? 0) >= 1) {
     return NextResponse.json({
-      error: `Beta limit: you can upload only one ${entityType} file. Delete the existing one to replace it.`,
+      error: `Beta limit: you can upload only one ${entityType} file.`,
       blockedReason: "entity_upload_limit",
     }, { status: 409 });
   }
