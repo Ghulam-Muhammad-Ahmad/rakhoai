@@ -117,14 +117,16 @@ export async function POST(req: NextRequest) {
     : "students";
   const importSetIdFromForm = String(formData.get("importSetId") ?? "").trim();
 
-  // Beta: one upload per entity type per academy. A previous FAILED upload does
-  // not count, so a tester can retry after a bad file.
+  // Beta: one COMPLETED upload per entity type per academy. Only PROCESSED
+  // uploads count, so an in-progress or abandoned upload (PENDING/PREVIEW_READY/
+  // MAPPED) and FAILED retries don't lock the tester out. Concurrent processing
+  // is already blocked by the PROCESSING activeJob check above.
   const { count: existingOfType } = await sb
     .from("Upload")
     .select("id", { count: "exact", head: true })
     .eq("academyId", academyId)
     .eq("entityType", entityType)
-    .neq("status", "FAILED");
+    .eq("status", "PROCESSED");
   if ((existingOfType ?? 0) >= 1) {
     return NextResponse.json({
       error: `Beta limit: you can upload only one ${entityType} file.`,
