@@ -212,7 +212,8 @@ export async function POST(req: NextRequest) {
   });
 
   if (insertError) {
-    return NextResponse.json({ error: "Failed to create upload record" }, { status: 500 });
+    console.error("Upload insert failed:", insertError);
+    return NextResponse.json({ error: "Failed to create upload record", detail: insertError.message }, { status: 500 });
   }
 
   // Sanitize the user-supplied filename before it touches the storage path —
