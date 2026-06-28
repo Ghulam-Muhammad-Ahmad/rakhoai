@@ -79,6 +79,21 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Upload not yet parsed" }, { status: 400 });
   }
 
+  // Already mapped (e.g. page reload) — return the saved mapping instead of
+  // re-running runMapping. Avoids a redundant AI call on every reload and
+  // preserves any manual overrides saved via PATCH.
+  const cachedEntityType = (upload.entityType ?? "students") as EntityType;
+  const cached = (upload.mappingJson as MappingResult[] | null) ?? [];
+  if (cached.length > 0) {
+    return NextResponse.json({
+      mappings: cached,
+      entityType: cachedEntityType,
+      formatType: upload.formatType ?? null,
+      fields: getImportFields(cachedEntityType),
+      identifier: upload.identifierJson ?? null,
+    });
+  }
+
   const headers = upload.headers as string[];
   const sampleRows = upload.sampleRows as Record<string, string>[];
 
