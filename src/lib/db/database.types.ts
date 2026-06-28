@@ -47,6 +47,7 @@ export type Database = {
           id: string
           name: string
           ownerId: string
+          studentLimit: number | null
           uploadLimit: number | null
         }
         Insert: {
@@ -56,6 +57,7 @@ export type Database = {
           id: string
           name: string
           ownerId: string
+          studentLimit?: number | null
           uploadLimit?: number | null
         }
         Update: {
@@ -65,6 +67,7 @@ export type Database = {
           id?: string
           name?: string
           ownerId?: string
+          studentLimit?: number | null
           uploadLimit?: number | null
         }
         Relationships: []
