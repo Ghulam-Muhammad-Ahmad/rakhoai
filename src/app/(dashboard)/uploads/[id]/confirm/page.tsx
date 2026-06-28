@@ -123,7 +123,7 @@ export default function ConfirmPage() {
             <p style={{ fontSize: 14, color: "var(--neutral-500)", marginTop: 6 }}>
               {entityType === "students"
                 ? `You already have ${studentCount.toLocaleString()} students. Choose how to merge this new upload.`
-                : `Choose whether to add these ${entityType === "sessions" ? "session rows" : "payment rows"} or replace records from this import set.`}
+                : `Choose whether to add these ${entityType} or replace records from this import set.`}
             </p>
           </div>
 
@@ -135,7 +135,7 @@ export default function ConfirmPage() {
               title={entityType === "students" ? "Update existing students" : "Add these records"}
               desc={entityType === "students"
                 ? "Match by name and contact. Update existing students, add new ones. Nothing is deleted."
-                : `Add these ${entityType === "sessions" ? "sessions" : "payments"} and keep existing records.`}
+                : `Add these ${entityType} and keep existing records.`}
               recommended
             />
             <ModeCard
@@ -205,9 +205,11 @@ export default function ConfirmPage() {
           <div style={{ fontSize: 13, color: "var(--neutral-500)" }}>
             {entityType === "students"
               ? "Importing students without fake churn scores. Sessions and payments unlock stronger risk signals."
-              : entityType === "sessions"
-                ? "Importing session rows and updating attendance summaries."
-                : "Importing payment rows and updating payment summaries."}
+              : entityType === "teachers"
+                ? "Importing teachers."
+                : entityType === "sessions"
+                  ? "Importing session rows and updating attendance summaries."
+                  : "Importing payment rows and updating payment summaries."}
           </div>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
@@ -219,7 +221,7 @@ export default function ConfirmPage() {
             <CheckCircle size={24} color="#10B981" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 600, color: "var(--neutral-900)", marginBottom: 8 }}>
-            {entityType === "students" ? "Students" : entityType === "sessions" ? "Sessions" : "Payments"} import complete
+            {entityType === "students" ? "Students" : entityType === "teachers" ? "Teachers" : entityType === "sessions" ? "Sessions" : "Payments"} import complete
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, margin: "0 auto 24px", maxWidth: 560 }}>
             <ReceiptMetric label={entityType === "students" ? "Imported" : "Rows imported"} value={receipt?.readyRows ?? rowCount ?? 0} />
