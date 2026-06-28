@@ -25,11 +25,12 @@ export async function GET(req: NextRequest) {
   const entityType = req.nextUrl.searchParams.get("entityType");
   let priorImportsForEntity = 0;
   if (entityType) {
-    const { count: priorCount } = await sb
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count: priorCount } = await (sb as any)
       .from("Upload")
       .select("id", { count: "exact", head: true })
       .eq("academyId", academyId)
-      .eq("entityType", entityType as "students" | "teachers" | "sessions" | "payments")
+      .eq("entityType", entityType)
       .eq("status", "PROCESSED");
     priorImportsForEntity = priorCount ?? 0;
   }
