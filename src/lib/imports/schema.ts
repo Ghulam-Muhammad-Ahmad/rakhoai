@@ -35,6 +35,7 @@ export const IMPORT_FIELDS: Record<EntityType, ImportField[]> = {
     { value: "session_date", label: "Session Date", desc: "Date of the class or attendance row." },
     { value: "attendance_status", label: "Attendance Status", desc: "Present, absent, late, or attended." },
     { value: "teacher_name", label: "Teacher Name", desc: "Optional teacher link." },
+    { value: "teacher_id", label: "Teacher ID", desc: "Optional teacher/record ID for your reference." },
     { value: "subject", label: "Subject", desc: "Optional subject or class." },
     { value: "duration_minutes", label: "Duration", desc: "Session length in minutes, if available." },
     { value: "total_sessions", label: "Total Sessions", desc: "Aggregate format total." },
@@ -56,6 +57,7 @@ export const IMPORT_FIELDS: Record<EntityType, ImportField[]> = {
     { value: "payment_status", label: "Payment Status", desc: "Paid, unpaid, overdue, pending." },
     { value: "overdue_amount", label: "Overdue Amount", desc: "Outstanding balance." },
     { value: "method", label: "Payment Method", desc: "Cash, card, bank transfer, or other method." },
+    { value: "teacher_id", label: "Teacher ID", desc: "Optional teacher/record ID for your reference." },
     { value: "last_payment_date", label: "Last Payment Date", desc: "Aggregate format latest payment." },
   ],
 };
