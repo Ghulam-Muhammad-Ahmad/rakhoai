@@ -21,6 +21,7 @@ export const IMPORT_FIELDS: Record<EntityType, ImportField[]> = {
   ],
   teachers: [
     { value: "teacher_name", label: "Teacher Name", desc: "Required teacher/tutor name." },
+    { value: "teacher_id", label: "Teacher ID", desc: "Optional teacher/record ID for your reference." },
     { value: "phone", label: "Phone", desc: "Teacher contact." },
     { value: "email", label: "Email", desc: "Teacher email." },
     { value: "subject", label: "Subject", desc: "Primary subject or class." },

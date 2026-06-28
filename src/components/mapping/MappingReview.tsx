@@ -157,7 +157,7 @@ function suspiciousMappingMessage(mapping: MappingResult): string | null {
     return `${mapping.sourceColumn} looks like a row ID, not a date.`;
   }
   if (key.endsWith("id") && !key.includes("student") && !mapping.suggestedField) {
-    return `${mapping.sourceColumn} looks like a record ID. Leave it unmapped unless it identifies a student.`;
+    return `${mapping.sourceColumn} looks like a record ID. Map it to an ID field (e.g. Teacher ID) if relevant, otherwise leave it unmapped.`;
   }
   return null;
 }

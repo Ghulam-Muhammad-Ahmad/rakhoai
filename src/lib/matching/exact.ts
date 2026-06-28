@@ -17,6 +17,7 @@ const ALIASES: AliasEntry[] = [
   { field: "subject", keys: ["subject", "course", "coursename", "subjectname", "class", "classname", "topic", "grade"] },
   { field: "tutor_assigned", keys: ["tutorassigned", "tutor", "teacher", "instructor", "teachername", "tutorname", "assignedtutor", "assignedteacher"] },
   { field: "teacher_name", keys: ["teachername", "teacher", "tutor", "tutorname", "instructor", "assignedteacher"] },
+  { field: "teacher_id", keys: ["teacherid", "tutorid", "instructorid", "staffid", "employeeid"] },
   { field: "notes", keys: ["notes", "note", "remarks", "comments", "comment", "observations", "additionalinfo"] },
   { field: "session_date", keys: ["sessiondate", "classdate", "attendancedate", "date"] },
   { field: "session_id", keys: ["sessionid", "classid", "attendanceid"] },
