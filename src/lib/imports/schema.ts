@@ -15,6 +15,7 @@ export const IMPORT_FIELDS: Record<EntityType, ImportField[]> = {
     { value: "email", label: "Email", desc: "Useful for contact and medium-confidence matching.", identifier: true },
     { value: "subject", label: "Subject / Course", desc: "Groups students by class or program." },
     { value: "teacher_name", label: "Teacher Name", desc: "Links to teacher analytics when available." },
+    { value: "teacher_id", label: "Teacher ID", desc: "Optional teacher/record ID for your reference." },
     { value: "monthly_fee", label: "Monthly Fee", desc: "Used as fallback revenue context." },
     { value: "join_date", label: "Join Date", desc: "Enrollment date." },
     { value: "notes", label: "Notes", desc: "Free-text context." },
