@@ -78,7 +78,12 @@ export function detectImportFormat(entityType: EntityType, headers: string[]): F
   }
 
   if (entityType === "payments") {
-    if (hasAny(headers, ["payment_date", "paid_date", "amount", "payment_status", "status"])) {
+    if (hasAny(headers, [
+      "payment_date", "paid_date", "amount", "payment_status", "status",
+      // Common fee-sheet headers: Date / Paid / Total / Balance / fees / tuition.
+      "date", "paid", "total", "balance", "total_paid", "amount_paid",
+      "fee", "fees", "tuition", "due_date", "method", "remarks",
+    ])) {
       return { entityType, format: "transaction", supported: true, warnings };
     }
     if (headers.filter(looksLikeMonthColumn).length >= 2) {
