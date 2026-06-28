@@ -131,8 +131,9 @@ export default async function DashboardPage() {
       </div>
 
       {/* KPI row */}
-      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
         <StatCard tinted eyebrow="Total students" value={summary.totalStudents.toLocaleString()} sub={dbUser.academy.name} />
+        <StatCard eyebrow="Teachers" value={summary.totalTeachers.toLocaleString()} sub="active tutors" />
         <StatCard eyebrow="High risk" value={summary.highRiskCount.toLocaleString()} sub={`${summary.mediumRiskCount} medium risk`} deltaTone="down" />
         <StatCard eyebrow="Revenue at risk" value={`${currencySymbol}${summary.estimatedRevenueAtRisk.toLocaleString()}`} sub="high-risk active fees" />
         <StatCard eyebrow="Students saved" value={summary.studentsSavedThisMonth.toLocaleString()} sub="this month" />
