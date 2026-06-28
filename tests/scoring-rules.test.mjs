@@ -20,7 +20,7 @@ function computeRuleScore(student, now = new Date()) {
   const reasons = [];
   if (student.lastSessionDate) {
     const d = daysBetween(student.lastSessionDate, now);
-    if (d > 14) { score += 30; reasons.push(`Has not attended a session in ${d} days`); }
+    if (d > 14) { score += 30; reasons.push(`No attendance recorded in ${d} days (since ${student.lastSessionDate.toISOString().slice(0, 10)}) — student may have stopped attending or the attendance data isn't up to date`); }
   }
   if (typeof student.attendanceRate === "number" && student.attendanceRate < 75) {
     score += 25; reasons.push(`Attendance is ${student.attendanceRate}%`);
