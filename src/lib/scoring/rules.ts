@@ -21,7 +21,7 @@ export function computeRuleScore(
     const daysSinceLastSession = daysBetween(student.lastSessionDate, now);
     if (daysSinceLastSession > 14) {
       score += 30;
-      reasons.push(`Has not attended a session in ${daysSinceLastSession} days`);
+      reasons.push(`No attendance recorded in ${daysSinceLastSession} days (since ${student.lastSessionDate.toISOString().slice(0, 10)}) — student may have stopped attending or the attendance data isn't up to date`);
     }
   }
 
