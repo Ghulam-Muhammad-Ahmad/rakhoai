@@ -30,23 +30,45 @@ function FieldSelect({ value, onChange, invalid, usedFields, fields }: {
   fields?: ImportField[];
 }) {
   const [open, setOpen] = useState(false);
+  // Menu uses fixed positioning anchored to the button rect so it is not clipped
+  // by the table wrapper's overflow:hidden. `up` flips it above the button when
+  // there isn't room below in the viewport (bottom rows).
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; up: boolean } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const fieldOptions: ImportField[] = fields ?? SCHEMA_FIELDS.map((field) => ({ ...field, identifier: false }));
   const selected = fieldOptions.find((f) => f.value === value);
+
+  function toggle() {
+    if (open) { setOpen(false); return; }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const spaceBelow = window.innerHeight - r.bottom;
+      const up = spaceBelow < 320 && r.top > spaceBelow;
+      setMenuPos({ top: up ? r.top : r.bottom, left: r.left, width: r.width, up });
+    }
+    setOpen(true);
+  }
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function handleScroll() { setOpen(false); }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
 
   return (
     <div ref={ref} style={{ position: "relative", minWidth: 200 }}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        ref={btnRef}
+        onClick={toggle}
         style={{
           width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
           padding: "6px 10px", borderRadius: "var(--radius-sm, 6px)", cursor: "pointer",
@@ -60,11 +82,15 @@ function FieldSelect({ value, onChange, invalid, usedFields, fields }: {
         <ChevronDown size={12} style={{ flexShrink: 0, color: "var(--neutral-400)", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
       </button>
 
-      {open && (
+      {open && menuPos && (
         <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+          position: "fixed",
+          left: menuPos.left,
+          top: menuPos.up ? undefined : menuPos.top + 4,
+          bottom: menuPos.up ? window.innerHeight - menuPos.top + 4 : undefined,
+          zIndex: 1000,
           background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: 8,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.10)", minWidth: 260, maxHeight: 320, overflowY: "auto",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.10)", minWidth: Math.max(260, menuPos.width), maxHeight: 320, overflowY: "auto",
         }}>
           <div
             onClick={() => { onChange(null); setOpen(false); }}
