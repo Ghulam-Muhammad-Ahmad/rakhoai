@@ -26,18 +26,23 @@ export default function ConfirmPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [academyRes, previewRes] = await Promise.all([
-          fetch("/api/academy/has-data"),
-          fetch(`/api/uploads/${uploadId}/normalize-preview`, { method: "POST" }),
-        ]);
-        const data = await academyRes.json();
+        const previewRes = await fetch(`/api/uploads/${uploadId}/normalize-preview`, { method: "POST" });
         const preview = await previewRes.json();
         const nextEntityType = (preview.entityType ?? "students") as EntityType;
         setEntityType(nextEntityType);
         setReceipt(preview.review ?? null);
+
+        const academyRes = await fetch(`/api/academy/has-data?entityType=${nextEntityType}`);
+        const data = await academyRes.json();
         setStudentCount(data.studentCount ?? 0);
-        // If no existing data, skip choice and go straight to processing
-        if (nextEntityType === "students" && (!data.hasStudents || data.studentCount === 0)) {
+
+        // The add/replace dialog only matters when there is prior data of this
+        // entity to act on. No prior data -> nothing to replace -> skip straight
+        // to processing. (For students, prior data = existing student rows.)
+        const hasPrior = nextEntityType === "students"
+          ? (data.hasStudents && data.studentCount > 0)
+          : (data.priorImportsForEntity ?? 0) > 0;
+        if (!hasPrior) {
           await startProcessing("update");
         } else {
           setState("choose");

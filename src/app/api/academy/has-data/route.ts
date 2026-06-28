@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserDb } from "@/lib/db/user-client";
 import { getAcademyIdForSupabaseUser } from "@/lib/db/auth-user";
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -19,6 +19,21 @@ export async function GET(_req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "DB error" }, { status: 500 });
 
+  // Prior processed uploads of a given entity type — used to decide whether the
+  // import-mode (add/replace) dialog is meaningful. No prior import = nothing to
+  // replace, so the dialog is skipped.
+  const entityType = req.nextUrl.searchParams.get("entityType");
+  let priorImportsForEntity = 0;
+  if (entityType) {
+    const { count: priorCount } = await sb
+      .from("Upload")
+      .select("id", { count: "exact", head: true })
+      .eq("academyId", academyId)
+      .eq("entityType", entityType as "students" | "teachers" | "sessions" | "payments")
+      .eq("status", "PROCESSED");
+    priorImportsForEntity = priorCount ?? 0;
+  }
+
   const { data: lastUpload } = await sb
     .from("Upload")
     .select("processedAt, fileName")
@@ -31,6 +46,7 @@ export async function GET(_req: NextRequest) {
   return NextResponse.json({
     hasStudents: (count ?? 0) > 0,
     studentCount: count ?? 0,
+    priorImportsForEntity,
     lastUploadAt: lastUpload?.processedAt ?? null,
     lastFileName: lastUpload?.fileName ?? null,
   });
