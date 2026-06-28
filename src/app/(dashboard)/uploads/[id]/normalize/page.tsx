@@ -135,13 +135,20 @@ function ReviewMetric({ label, value, tone = "neutral" }: { label: string; value
 function ImportReviewPanel({ entityType, review }: { entityType: EntityType; review: ImportReviewSummary }) {
   if (entityType === "students") {
     return (
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10, marginBottom: 20 }}>
-        <ReviewMetric label="Rows found" value={review.totalRows} />
-        <ReviewMetric label="New students" value={review.newRows} tone="good" />
-        <ReviewMetric label="Updated students" value={review.updatedRows} />
-        <ReviewMetric label="Missing names" value={review.missingNames ?? 0} tone={(review.missingNames ?? 0) > 0 ? "warn" : "neutral"} />
-        <ReviewMetric label="Missing identifiers" value={review.missingIdentifiers ?? 0} tone={(review.missingIdentifiers ?? 0) > 0 ? "warn" : "neutral"} />
-      </div>
+      <>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10, marginBottom: 20 }}>
+          <ReviewMetric label="Rows found" value={review.totalRows} />
+          <ReviewMetric label="New students" value={review.newRows} tone="good" />
+          <ReviewMetric label="Updated students" value={review.updatedRows} />
+          <ReviewMetric label="Missing names" value={review.missingNames ?? 0} tone={(review.missingNames ?? 0) > 0 ? "warn" : "neutral"} />
+          <ReviewMetric label="Missing identifiers" value={review.missingIdentifiers ?? 0} tone={(review.missingIdentifiers ?? 0) > 0 ? "warn" : "neutral"} />
+        </div>
+        {(review.cappedRows ?? 0) > 0 && (
+          <div style={{ marginBottom: 20, padding: "10px 14px", borderRadius: 8, background: "#FEF3C7", color: "#92400E", fontSize: 13, fontWeight: 600 }}>
+            {review.cappedRows} student{(review.cappedRows ?? 0) === 1 ? "" : "s"} skipped — beta student limit reached.
+          </div>
+        )}
+      </>
     );
   }
 

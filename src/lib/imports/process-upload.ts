@@ -201,6 +201,16 @@ async function importStudents(db: SupabaseClient<Database>, args: {
   const { students } = await normalizeRows(args.rows, args.mappings, { academyId: args.academyId, uploadId: args.uploadId });
   const existing = await loadStudents(db, args.academyId);
 
+  // Beta cap: enforced here, not via RLS — this insert runs on the service-role
+  // client which bypasses RLS. NULL limit = unlimited. Only NEW students count
+  // against the cap; updates to existing students are always allowed.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: academy } = await (db as any)
+    .from("Academy").select("studentLimit").eq("id", args.academyId).single();
+  const studentLimit: number | null = academy?.studentLimit ?? null;
+  let remainingNew = studentLimit == null ? Infinity : Math.max(0, studentLimit - existing.length);
+  let cappedRows = 0;
+
   // Real (non-synthetic) external ids are globally unique → safe single-id lookup.
   const byExternal = new Map<string, string>();
   // Composite (contact + name) is the only safe phone-based key: two siblings
@@ -266,6 +276,10 @@ async function importStudents(db: SupabaseClient<Database>, args: {
       if (error) throw new Error(`Failed to update student`);
       updatedRows++;
     } else {
+      if (remainingNew <= 0) {
+        cappedRows++;
+        continue;
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (db as any).from("Student").insert({
         ...payload,
@@ -274,6 +288,7 @@ async function importStudents(db: SupabaseClient<Database>, args: {
       });
       if (error) throw new Error(`Failed to insert student`);
       newRows++;
+      remainingNew--;
     }
   }
 
@@ -285,7 +300,8 @@ async function importStudents(db: SupabaseClient<Database>, args: {
     newRows,
     unmatchedRows: 0,
     lowConfidenceRows: 0,
-    ignoredRows: args.rows.length - students.length,
+    ignoredRows: args.rows.length - students.length + cappedRows,
+    cappedRows: cappedRows || undefined,
   } satisfies ImportReviewSummary;
 }
 

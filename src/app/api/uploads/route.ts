@@ -117,6 +117,21 @@ export async function POST(req: NextRequest) {
     : "students";
   const importSetIdFromForm = String(formData.get("importSetId") ?? "").trim();
 
+  // Beta: one upload per entity type per academy. A previous FAILED upload does
+  // not count, so a tester can retry after a bad file.
+  const { count: existingOfType } = await sb
+    .from("Upload")
+    .select("id", { count: "exact", head: true })
+    .eq("academyId", academyId)
+    .eq("entityType", entityType)
+    .neq("status", "FAILED");
+  if ((existingOfType ?? 0) >= 1) {
+    return NextResponse.json({
+      error: `Beta limit: you can upload only one ${entityType} file. Delete the existing one to replace it.`,
+      blockedReason: "entity_upload_limit",
+    }, { status: 409 });
+  }
+
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (!ALLOWED_TYPES.includes(ext)) {
     return NextResponse.json({ error: `Invalid file type. Allowed: ${ALLOWED_TYPES.join(", ")}` }, { status: 400 });

@@ -433,6 +433,9 @@ export default function UploadNewPage() {
           <p style={{ fontSize: 14, color: "var(--neutral-500)", marginTop: 6 }}>
             Start with students, then add sessions and payments when you have them.
           </p>
+          <div style={{ marginTop: 10, display: "inline-block", padding: "8px 12px", borderRadius: 8, background: "#FEF3C7", color: "#92400E", fontSize: 12.5, fontWeight: 600 }}>
+            Beta: uploads and the number of students are limited per account. Extra rows above the cap are skipped.
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 4 }}>
           {academyEmpty && <LoadDemoDataButton mode="load" redirectTo="/dashboard" size="sm" />}

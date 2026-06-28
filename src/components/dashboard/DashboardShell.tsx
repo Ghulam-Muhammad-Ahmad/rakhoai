@@ -52,8 +52,9 @@ function NavLink({ href, icon: Icon, label, exact = false }: { href: string; ico
 function Sidebar() {
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-[var(--neutral-200)] bg-white px-3.5 py-5">
-      <div className="px-1.5 py-1">
+      <div className="flex items-center gap-2 px-1.5 py-1">
         <Image src="/assets/logo.png" alt="Rakho AI" width={126} height={34} priority />
+        <span className="rounded-full bg-[#F59E0B] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Beta</span>
       </div>
 
       <div className="flex flex-col gap-0.5">

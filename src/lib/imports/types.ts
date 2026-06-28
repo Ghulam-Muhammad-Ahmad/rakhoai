@@ -48,6 +48,7 @@ export type ImportReviewSummary = {
   unmatchedRows: number;
   lowConfidenceRows: number;
   ignoredRows?: number;
+  cappedRows?: number;
   missingNames?: number;
   missingIdentifiers?: number;
 };
