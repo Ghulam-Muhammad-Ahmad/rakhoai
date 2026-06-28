@@ -54,7 +54,11 @@ function FieldSelect({ value, onChange, invalid, usedFields, fields }: {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    function handleScroll() { setOpen(false); }
+    // Close on page scroll, but not when scrolling inside the menu itself.
+    function handleScroll(e: Event) {
+      if (ref.current && ref.current.contains(e.target as Node)) return;
+      setOpen(false);
+    }
     document.addEventListener("mousedown", handleClick);
     window.addEventListener("scroll", handleScroll, true);
     return () => {
