@@ -28,9 +28,11 @@ assert.equal(
   formats.detectImportFormat("sessions", ["student_id", "2026-05-01", "2026-05-03"]).supported,
   false
 );
+// Detection is lenient now: non-wide sheets are accepted as "long"; the mapping
+// step decides what columns mean (aggregate vs per-session handled there).
 assert.deepEqual(
   formats.detectImportFormat("sessions", ["student_id", "total_sessions", "attendance_rate"]).format,
-  "aggregate"
+  "long"
 );
 assert.deepEqual(
   formats.detectImportFormat("payments", ["student_id", "payment_date", "amount", "payment_status"]).format,
@@ -44,9 +46,10 @@ assert.equal(
   formats.detectImportFormat("payments", ["student_id", "Jan 2026", "Feb 2026"]).supported,
   false
 );
+// No identifier gate at detection — accepted; mapping enforces an identifier.
 assert.equal(
   formats.detectImportFormat("sessions", ["student_name", "red", "green"]).supported,
-  false
+  true
 );
 
 const students = [
