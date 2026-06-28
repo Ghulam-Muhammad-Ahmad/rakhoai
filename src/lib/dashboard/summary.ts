@@ -8,6 +8,7 @@ export type DashboardSummary = {
   mediumRiskCount: number;
   estimatedRevenueAtRisk: number;
   studentsSavedThisMonth: number;
+  totalTeachers: number;
 };
 
 function startOfMonth(date: Date): string {
@@ -85,11 +86,18 @@ export async function getDashboardSummary(
     (savedRows ?? []).map((r: { studentId: string | null }) => r.studentId).filter(Boolean)
   ).size;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { count: teacherCount } = await (db as any)
+    .from("Tutor")
+    .select("id", { count: "exact", head: true })
+    .eq("academyId", academyId);
+
   return {
     totalStudents: students.length,
     highRiskCount,
     mediumRiskCount,
     estimatedRevenueAtRisk,
     studentsSavedThisMonth,
+    totalTeachers: teacherCount ?? 0,
   };
 }
