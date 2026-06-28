@@ -28,7 +28,7 @@ const ALIASES: AliasEntry[] = [
   { field: "billing_month", keys: ["billingmonth", "month", "feemonth"] },
   { field: "due_date", keys: ["duedate", "paymentdue", "feeduedate"] },
   { field: "paid_date", keys: ["paiddate", "datepaid", "receiveddate"] },
-  { field: "payment_date", keys: ["paymentdate", "datepaid", "paiddate"] },
+  { field: "payment_date", keys: ["paymentdate", "datepaid", "paiddate", "date"] },
   { field: "amount", keys: ["amount", "amountpaid", "paidamount", "paymentamount"] },
   { field: "overdue_amount", keys: ["overdueamount", "unpaidamount", "balance", "dueamount"] },
   { field: "method", keys: ["method", "paymentmethod", "mode", "paymentmode"] },
