@@ -6,6 +6,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { signIn } from '@/app/(auth)/actions'
 import { GoogleButton } from '@/components/auth/GoogleButton'
 import { SubmitButton } from '@/components/auth/SubmitButton'
+import { Recaptcha } from '@/components/auth/Recaptcha'
 import { useSearchParams } from 'next/navigation'
 
 function LoginForm() {
@@ -75,6 +76,8 @@ function LoginForm() {
             {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         </div>
+
+        <Recaptcha />
 
         <SubmitButton idle="Sign in" pending="Signing in…" />
       </form>

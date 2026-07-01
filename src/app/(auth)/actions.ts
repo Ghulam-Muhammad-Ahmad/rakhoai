@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAuthUserWithAcademy } from '@/lib/db/auth-user'
 import { headers } from 'next/headers'
 import { checkAuthRateLimit } from '@/lib/rate-limit'
+import { verifyRecaptcha } from '@/lib/recaptcha'
 
 const signUpSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120, 'Name is too long'),
@@ -32,6 +33,11 @@ export async function signUp(formData: FormData) {
   const limit = await checkAuthRateLimit(clientIp)
   if (!limit.success) {
     redirect(`/signup?error=${encodeURIComponent('Too many attempts. Please try again later.')}`)
+  }
+
+  const humanOk = await verifyRecaptcha(formData.get('g-recaptcha-response') as string | null)
+  if (!humanOk) {
+    redirect(`/signup?error=${encodeURIComponent('Please complete the reCAPTCHA')}`)
   }
 
   const parsed = signUpSchema.safeParse({
@@ -70,6 +76,11 @@ export async function signIn(formData: FormData) {
   const limit = await checkAuthRateLimit(clientIp)
   if (!limit.success) {
     redirect(`/login?error=${encodeURIComponent('Too many attempts. Please try again later.')}`)
+  }
+
+  const humanOk = await verifyRecaptcha(formData.get('g-recaptcha-response') as string | null)
+  if (!humanOk) {
+    redirect(`/login?error=${encodeURIComponent('Please complete the reCAPTCHA')}`)
   }
 
   const parsed = signInSchema.safeParse({

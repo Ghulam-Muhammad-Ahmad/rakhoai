@@ -6,6 +6,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { signUp } from '@/app/(auth)/actions'
 import { GoogleButton } from '@/components/auth/GoogleButton'
 import { SubmitButton } from '@/components/auth/SubmitButton'
+import { Recaptcha } from '@/components/auth/Recaptcha'
 import { useSearchParams } from 'next/navigation'
 
 function SignupForm() {
@@ -115,6 +116,8 @@ function SignupForm() {
             <a href="#privacy" className="font-semibold text-[#0F172A] hover:underline">Privacy Policy</a>.
           </label>
         </div>
+
+        <Recaptcha />
 
         <SubmitButton idle="Create account" pending="Creating your account…" />
 
