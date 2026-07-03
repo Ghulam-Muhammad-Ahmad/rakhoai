@@ -3,9 +3,9 @@ import { AuthSideImage } from '@/components/auth/AuthBackgroundImages'
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen p-4 sm:p-6" style={{ background: '#F4F9F8' }}>
+    <div className="min-h-screen p-2 sm:p-6" style={{ background: '#F4F9F8' }}>
       <div
-        className="relative flex min-h-[calc(100vh-32px)] flex-col overflow-hidden rounded-lg px-4 py-6 sm:min-h-[calc(100vh-48px)] sm:px-8 sm:py-9 lg:px-10"
+        className="relative flex min-h-[calc(100vh-16px)] flex-col overflow-hidden rounded-lg px-0 py-6 sm:min-h-[calc(100vh-48px)] sm:px-8 sm:py-9 lg:px-10"
         style={{ background: '#F4F9F8' }}
       >
         <main className="relative z-10 flex min-h-[540px] flex-1 items-center justify-center gap-[clamp(1rem,2vw,3rem)] py-6">

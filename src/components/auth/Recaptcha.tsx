@@ -39,5 +39,5 @@ export function Recaptcha() {
   }, [])
 
   if (!SITE_KEY) return null
-  return <div ref={ref} className="flex justify-center my-1" />
+  return <div ref={ref} className="flex justify-center overflow-x-auto my-1" />
 }

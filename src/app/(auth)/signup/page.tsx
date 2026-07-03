@@ -17,7 +17,7 @@ function SignupForm() {
 
   return (
     <div
-      className="w-full max-w-[520px] bg-white rounded-[18px] px-10 py-9"
+      className="w-full max-w-[520px] bg-white rounded-[18px] px-4 py-8 sm:px-10 sm:py-9"
       style={{ boxShadow: '0 30px 60px -25px rgba(15,23,42,0.18), 0 4px 14px -6px rgba(15,23,42,0.06)' }}
     >
       <h1
