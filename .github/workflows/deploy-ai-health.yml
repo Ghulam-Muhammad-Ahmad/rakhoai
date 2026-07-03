@@ -1,0 +1,27 @@
+name: Deploy AI health check
+
+# Fires when Vercel reports a deployment succeeded, then verifies the configured
+# AI model actually answers. Fails the check (visible in the commit/PR) if the
+# model is down or misconfigured — without blocking the build itself.
+on:
+  deployment_status:
+
+jobs:
+  ai-health:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /api/health/ai
+        env:
+          # Set this repo secret only if HEALTH_CHECK_TOKEN is also set on Vercel.
+          TOKEN: ${{ secrets.HEALTH_CHECK_TOKEN }}
+        run: |
+          URL="${{ github.event.deployment_status.target_url }}"
+          if [ -z "$URL" ]; then echo "::error::No deployment URL"; exit 1; fi
+          Q=""
+          [ -n "$TOKEN" ] && Q="?token=$TOKEN"
+          echo "Checking $URL/api/health/ai"
+          CODE=$(curl -sS -m 60 -o /tmp/body.txt -w "%{http_code}" "$URL/api/health/ai$Q" || echo 000)
+          cat /tmp/body.txt; echo
+          [ "$CODE" = "200" ] || { echo "::error::AI health check failed (HTTP $CODE)"; exit 1; }
+          echo "AI model healthy."
