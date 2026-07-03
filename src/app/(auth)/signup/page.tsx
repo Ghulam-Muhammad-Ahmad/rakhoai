@@ -26,7 +26,7 @@ function SignupForm() {
         Create your account
       </h1>
       <p className="text-sm text-center mb-6 pb-4 text-gray-500">
-        Start your free 14-day trial. No credit card needed.
+        Start your journey with Rakho AI — set up your academy in minutes.
       </p>
 
       <GoogleButton />
