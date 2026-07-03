@@ -112,6 +112,8 @@ export function SessionsBulkTable() {
         </button>
       </div>
 
+      <div style={{ overflowX: "auto" }}>
+      <div style={{ minWidth: 720 }}>
       <div style={{ display: "grid", gridTemplateColumns: "32px 1.6fr 1fr 1fr 1fr 1fr 44px", padding: "12px 20px", background: "var(--neutral-50)", borderBottom: "1px solid var(--neutral-100)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", fontWeight: 600, gap: 12 }}>
         <div /><div>Student</div>
         <div><SortHeader label="Date" col="date" sort={sort} direction={direction} onSort={onSort} /></div>
@@ -152,6 +154,8 @@ export function SessionsBulkTable() {
           No sessions found. Import a sessions file to unlock attendance and recency risk.
         </div>
       )}
+      </div>
+      </div>
 
       <Pagination page={page} perPage={perPage} total={total} loading={loading} onPageChange={setPage} onPerPageChange={setPerPage} />
     </>

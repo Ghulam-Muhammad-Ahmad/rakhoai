@@ -26,7 +26,7 @@ export default async function StudentsPage() {
 
   return (
     <div className="page-fade">
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
         <div>
           <div style={{ fontSize: 14, color: "var(--neutral-500)" }}>Roster - {dbUser.academy.name}</div>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.02em", margin: "4px 0 0" }}>Students</h1>

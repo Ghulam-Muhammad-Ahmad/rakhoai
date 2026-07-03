@@ -77,7 +77,7 @@ export function StudentDataModal({ studentId, studentName }: { studentId: string
               ) : error ? (
                 <div style={{ padding: "32px 8px", textAlign: "center", fontSize: 14, color: "var(--error)" }}>{error}</div>
               ) : fields && fields.length > 0 ? (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
                   {fields.map((f) => (
                     <div key={f.key} style={{ display: "flex", flexDirection: "column", gap: 3, padding: "10px 12px", border: "1px solid var(--neutral-100)", borderRadius: "var(--radius-md)", background: "var(--neutral-50)" }}>
                       <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-400)" }}>{humanizeKey(f.key)}</span>

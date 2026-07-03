@@ -102,21 +102,21 @@ export default async function DashboardPage() {
   return (
     <div className="page-fade" style={{ position: "relative" }}>
       {/* Page header */}
-      <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24 }}>
+      <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <Image src="/assets/desi/scoter.png" alt="" width={64} height={64} style={{ width: 56, height: "auto", objectFit: "contain", flexShrink: 0 }} />
+          <Image src="/assets/desi/scoter.png" alt="" width={64} height={64} className="hidden sm:block" style={{ width: 56, height: "auto", objectFit: "contain", flexShrink: 0 }} />
           <div>
             <div style={{ fontSize: 14, color: "var(--neutral-500)" }}>{greeting}, {dbUser.academy.name}</div>
-            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.02em", margin: "4px 0 0" }}>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(20px, 6.5vw, 32px)", fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.02em", margin: "4px 0 0" }}>
               {headline}
             </h1>
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="max-sm:w-full" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          <div className="max-sm:w-full" style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {summary.totalStudents === 0 && <LoadDemoDataButton mode="load" />}
             {hasDemoData && <LoadDemoDataButton mode="remove" />}
-            <Link href="/uploads/new" style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: lastUpload ? "1px solid var(--neutral-200)" : "none", background: lastUpload ? "#fff" : "var(--primary-500)", color: lastUpload ? "var(--neutral-700)" : "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+            <Link href="/uploads/new" className="max-sm:w-full max-sm:justify-center" style={{ fontSize: 14, fontWeight: 500, padding: "9px 14px", borderRadius: "var(--radius-md)", border: lastUpload ? "1px solid var(--neutral-200)" : "none", background: lastUpload ? "#fff" : "var(--primary-500)", color: lastUpload ? "var(--neutral-700)" : "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
               {lastUpload ? <><RefreshCw size={14} /> Update data</> : "Upload data"}
             </Link>
           </div>
@@ -131,7 +131,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* KPI row */}
-      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
+      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))", gap: 16 }}>
         <StatCard tinted eyebrow="Total students" value={summary.totalStudents.toLocaleString()} sub={dbUser.academy.name} />
         <StatCard eyebrow="Teachers" value={summary.totalTeachers.toLocaleString()} sub="active tutors" />
         <StatCard eyebrow="High risk" value={summary.highRiskCount.toLocaleString()} sub={`${summary.mediumRiskCount} medium risk`} deltaTone="down" />
@@ -172,7 +172,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Charts row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1.4fr 1fr", gap: 16, marginTop: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(260px, 100%), 1fr))", gap: 16, marginTop: 16 }}>
         <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", padding: 20, boxShadow: "var(--shadow-xs)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: "var(--neutral-900)" }}>Low-risk share by month</div>
@@ -196,13 +196,15 @@ export default async function DashboardPage() {
       </div>
 
       {/* Bottom row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginTop: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(300px, 100%), 1fr))", gap: 16, marginTop: 16 }}>
         {/* At-risk table */}
         <div style={{ background: "#fff", border: "1px solid var(--neutral-200)", borderRadius: "var(--radius-lg)", padding: 20, boxShadow: "var(--shadow-xs)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: "var(--neutral-900)" }}>Watching the door</div>
             <div style={{ fontSize: 12, color: "var(--neutral-500)" }}>{atRisk.length} students · sorted by risk</div>
           </div>
+          <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 560 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1fr 1fr 1fr 0.8fr 40px", padding: "0 4px 10px", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", fontWeight: 600, gap: 12 }}>
             <div>Student</div><div>Subject</div><div>Attendance</div><div>Risk</div><div>Fees</div><div />
           </div>
@@ -227,6 +229,8 @@ export default async function DashboardPage() {
               <div style={{ color: "var(--neutral-400)", textAlign: "right" }}>›</div>
             </Link>
           ))}
+          </div>
+          </div>
           {atRisk.length === 0 && (
             <div style={{ padding: "26px 4px 14px", borderTop: "1px solid var(--neutral-100)", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
               <Image src="/assets/desi/scoter.png" alt="" width={120} height={120} style={{ width: 96, height: "auto", objectFit: "contain" }} />

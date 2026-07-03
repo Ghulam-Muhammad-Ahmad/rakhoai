@@ -395,12 +395,12 @@ export default function InterventionsClient({
 
   return (
     <div className="page-fade">
-      <div className="mb-6 flex items-end justify-between w-full gap-6">
+      <div className="mb-6 flex flex-wrap items-end justify-between w-full gap-6">
         <div>
           <div className="text-sm text-[var(--neutral-500)]">Retention work queue</div>
           <h1 className="m-0 mt-1 font-[family:var(--font-display)] text-[32px] font-medium tracking-[-0.02em] text-[var(--neutral-900)]">Interventions</h1>
         </div>
-        <div className="flex shrink-0 gap-3">
+        <div className="grid w-full grid-cols-3 gap-3 sm:flex sm:w-auto sm:shrink-0">
           <SummaryTile label="Pending" value={pending.length} />
           <SummaryTile label="Active" value={activeActions.length} />
           <SummaryTile label="Completed" value={completedActions.length} />
@@ -415,8 +415,8 @@ export default function InterventionsClient({
       )}
 
       <div>
-        <div className="flex items-center justify-between gap-4 border-b border-[var(--neutral-100)] pb-4">
-          <div className="flex gap-1">
+        <div className="flex flex-col gap-3 border-b border-[var(--neutral-100)] pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex flex-wrap gap-1">
             {tabs.map((item) => (
               <button
                 key={item.key}
@@ -432,7 +432,7 @@ export default function InterventionsClient({
             ))}
           </div>
 
-          <div className="flex w-[360px] items-center gap-2.5 rounded-sm border border-[var(--neutral-200)] bg-[var(--neutral-50)] px-3 py-2">
+          <div className="flex w-full items-center gap-2.5 rounded-sm border border-[var(--neutral-200)] bg-[var(--neutral-50)] px-3 py-2 sm:w-[360px]">
             <Search size={15} className="text-[var(--neutral-400)]" />
             <input
               value={searchQuery}
@@ -516,7 +516,7 @@ export default function InterventionsClient({
 
 function SummaryTile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="w-[116px] rounded-sm border border-[var(--neutral-200)] bg-white px-3.5 py-3 shadow-[var(--shadow-xs)]">
+    <div className="w-full rounded-sm border border-[var(--neutral-200)] bg-white px-3.5 py-3 shadow-[var(--shadow-xs)] sm:w-[116px]">
       <div className="text-xs font-semibold text-[var(--neutral-500)]">{label}</div>
       <div className="mt-1 font-[family:var(--font-display)] text-2xl font-medium leading-none tracking-[-0.02em] text-[var(--neutral-900)] tabular-nums">{value}</div>
     </div>
@@ -539,7 +539,7 @@ function PendingCard({
   const risk = riskBadgeMeta(item.riskBand);
 
   return (
-    <article className="relative flex min-w-[320px] basis-[calc(33.333%_-_10px)] grow-0 flex-wrap items-center gap-4 rounded-sm border border-[var(--neutral-200)] bg-white p-4 shadow-[var(--shadow-xs)]">
+    <article className="relative flex min-w-[min(320px,100%)] basis-[calc(33.333%_-_10px)] grow-0 flex-wrap items-center gap-4 rounded-sm border border-[var(--neutral-200)] bg-white p-4 shadow-[var(--shadow-xs)]">
       <div className="w-full">
         <div className="w-full text-lg font-bold tracking-[-0.01em] text-[var(--neutral-900)]">{item.name}</div>
         <div className="mt-0.5 w-full text-xs text-[var(--neutral-400)]">
@@ -592,7 +592,7 @@ function ActionCard({
   const statusClass = statusBadgeClass(action.status);
 
   return (
-    <article className="relative flex min-w-[320px] basis-[calc(33.333%_-_10px)] grow-0 flex-wrap items-center gap-4 rounded-sm border border-[var(--neutral-200)] bg-white p-4 shadow-[var(--shadow-xs)]">
+    <article className="relative flex min-w-[min(320px,100%)] basis-[calc(33.333%_-_10px)] grow-0 flex-wrap items-center gap-4 rounded-sm border border-[var(--neutral-200)] bg-white p-4 shadow-[var(--shadow-xs)]">
       <div className="w-full">
         <div className="w-full text-lg font-bold tracking-[-0.01em] text-[var(--neutral-900)]">{action.studentName}</div>
         <div className="mt-0.5 inline-flex w-full items-center gap-1 text-xs text-[var(--neutral-400)]">
@@ -738,7 +738,7 @@ function DetailSection({ title, children }: { title: string; children: React.Rea
 
 function DetailGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-4 gap-3.5">
+    <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
       {children}
     </div>
   );

@@ -416,7 +416,7 @@ export default function UploadNewPage() {
         </div>
       )}
 
-      {state !== "blocked_job" && state !== "checking" && <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
+      {state !== "blocked_job" && state !== "checking" && <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1
             style={{
@@ -456,7 +456,7 @@ export default function UploadNewPage() {
       </div>}
 
       {state !== "blocked_job" && state !== "checking" && <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 20 }}>
         {ENTITY_OPTIONS.map((option) => {
           const Icon = option.icon;
           const selected = entityType === option.value;
@@ -504,7 +504,7 @@ export default function UploadNewPage() {
           );
         })}
       </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--neutral-200)", background: "#fff" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 14, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--neutral-200)", background: "#fff" }}>
         <div style={{ fontSize: 12, color: "var(--neutral-600)" }}>
           Recommended: keep a stable <strong>Student ID / Roll No / Reg No</strong> across every file. Row number is not valid.
         </div>

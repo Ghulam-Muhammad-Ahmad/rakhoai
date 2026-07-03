@@ -136,7 +136,7 @@ function ImportReviewPanel({ entityType, review }: { entityType: EntityType; rev
   if (entityType === "students") {
     return (
       <>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 20 }}>
           <ReviewMetric label="Rows found" value={review.totalRows} />
           <ReviewMetric label="New students" value={review.newRows} tone="good" />
           <ReviewMetric label="Updated students" value={review.updatedRows} />
@@ -153,7 +153,7 @@ function ImportReviewPanel({ entityType, review }: { entityType: EntityType; rev
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 20 }}>
       <ReviewMetric label="Rows found" value={review.totalRows} />
       <ReviewMetric label={entityType === "sessions" ? "Matched to students" : entityType === "payments" ? "Matched to students" : "Ready to import"} value={review.readyRows} tone="good" />
       <ReviewMetric label="Unmatched rows" value={review.unmatchedRows} tone={review.unmatchedRows > 0 ? "warn" : "neutral"} />

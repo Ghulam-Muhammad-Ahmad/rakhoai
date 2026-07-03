@@ -223,7 +223,7 @@ export default function ConfirmPage() {
           <div style={{ fontSize: 18, fontWeight: 600, color: "var(--neutral-900)", marginBottom: 8 }}>
             {entityType === "students" ? "Students" : entityType === "teachers" ? "Teachers" : entityType === "sessions" ? "Sessions" : "Payments"} import complete
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, margin: "0 auto 24px", maxWidth: 560 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, margin: "0 auto 24px", maxWidth: 560 }}>
             <ReceiptMetric label={entityType === "students" ? "Imported" : "Rows imported"} value={receipt?.readyRows ?? rowCount ?? 0} />
             <ReceiptMetric label={entityType === "students" ? "Updated" : "Matched students"} value={entityType === "students" ? receipt?.updatedRows ?? 0 : receipt?.readyRows ?? 0} />
             <ReceiptMetric label="Unmatched" value={receipt?.unmatchedRows ?? 0} />

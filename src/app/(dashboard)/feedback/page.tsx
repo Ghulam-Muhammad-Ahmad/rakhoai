@@ -50,7 +50,7 @@ export default function FeedbackPage() {
       )}
 
       <form onSubmit={submit} className="mt-5 flex flex-col gap-4">
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {TYPES.map(({ value, label, icon: Icon }) => (
             <button
               key={value}

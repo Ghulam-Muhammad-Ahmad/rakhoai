@@ -68,6 +68,8 @@ export function TutorsBulkTable({ currencySymbol }: { currencySymbol: string }) 
         </button>
       </div>
 
+      <div style={{ overflowX: "auto" }}>
+      <div style={{ minWidth: 900 }}>
       <div style={{ display: "grid", gridTemplateColumns: "32px 1.8fr 0.7fr 0.7fr 0.7fr 0.9fr 0.9fr 1fr 0.7fr 44px", padding: "12px 20px", background: "var(--neutral-50)", borderBottom: "1px solid var(--neutral-100)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", fontWeight: 600, gap: 12 }}>
         <div /><div>Tutor</div><div>Students</div><div>High risk</div><div>Medium</div><div>Avg risk</div><div>Attendance</div><div>Revenue risk</div><div>Pending</div><div />
       </div>
@@ -103,6 +105,8 @@ export function TutorsBulkTable({ currencySymbol }: { currencySymbol: string }) 
           No tutor data yet. Upload mapped student data with a tutor column to populate this page.
         </div>
       )}
+      </div>
+      </div>
 
       <Pagination page={page} perPage={perPage} total={total} loading={loading} onPageChange={setPage} onPerPageChange={setPerPage} />
     </>

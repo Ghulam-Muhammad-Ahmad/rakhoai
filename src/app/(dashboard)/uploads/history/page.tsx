@@ -158,7 +158,8 @@ export default async function ImportHistoryPage() {
 
               {/* Receipts under the bundle */}
               {setUploads.length > 0 && (
-                <div>
+                <div style={{ overflowX: "auto" }}>
+                  <div style={{ minWidth: 640 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.9fr repeat(3, 0.6fr)", gap: 12, padding: "10px 18px", background: "var(--neutral-50)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", fontWeight: 700 }}>
                     <div>File</div><div>Type</div><div>Processed</div><div>Rows</div><div>Updated</div><div>Issues</div>
                   </div>
@@ -179,6 +180,7 @@ export default async function ImportHistoryPage() {
                       </div>
                     );
                   })}
+                  </div>
                 </div>
               )}
             </div>
