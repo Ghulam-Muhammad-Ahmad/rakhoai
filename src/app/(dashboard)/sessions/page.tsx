@@ -45,7 +45,7 @@ export default async function SessionsPage() {
 
   return (
     <div className="page-fade">
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
         <div>
           <div style={{ fontSize: 14, color: "var(--neutral-500)" }}>Attendance history - {dbUser.academy.name}</div>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 500, color: "var(--neutral-900)", letterSpacing: "-0.02em", margin: "4px 0 0" }}>Sessions</h1>
@@ -68,6 +68,8 @@ export default async function SessionsPage() {
               Showing <strong>aggregate attendance</strong> from your latest summary upload — one attendance rate per student, not per-class records.{" "}
               <Link href="/uploads/new?entity=sessions" style={{ color: "#0F766E", fontWeight: 600, textDecoration: "underline" }}>Upload a per-class session file</Link> to see individual sessions.
             </div>
+            <div style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: 520 }}>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.2fr 1fr", padding: "12px 16px", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", fontWeight: 600, borderBottom: "1px solid var(--neutral-100)" }}>
               <div>Student</div><div>Attendance</div><div>Last session</div><div>Total sessions</div>
             </div>
@@ -84,6 +86,8 @@ export default async function SessionsPage() {
                 <div style={{ fontFamily: "var(--font-mono)", color: "var(--neutral-700)" }}>{s.totalSessions ?? "—"}</div>
               </div>
             ))}
+            </div>
+            </div>
           </div>
         ) : (
           <SessionsBulkTable />

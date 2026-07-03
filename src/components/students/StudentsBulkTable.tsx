@@ -76,6 +76,8 @@ export function StudentsBulkTable({ filters }: { filters: StudentTableFilters })
         </button>
       </div>
 
+      <div style={{ overflowX: "auto" }}>
+      <div style={{ minWidth: 720 }}>
       <div style={{ display: "grid", gridTemplateColumns: "32px 1.8fr 0.9fr 0.9fr 1fr 1fr 0.8fr 44px", padding: "12px 20px", background: "var(--neutral-50)", borderBottom: "1px solid var(--neutral-100)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--neutral-500)", fontWeight: 600, gap: 12 }}>
         <div /><div>Student</div><div>Subject</div><div>Tutor</div><div>Attendance</div><div>Risk</div><div>Fees</div><div />
       </div>
@@ -123,6 +125,8 @@ export function StudentsBulkTable({ filters }: { filters: StudentTableFilters })
           No students match that filter.
         </div>
       )}
+      </div>
+      </div>
 
       <Pagination page={page} perPage={perPage} total={total} loading={loading} onPageChange={setPage} onPerPageChange={setPerPage} />
     </>
