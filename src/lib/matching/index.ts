@@ -118,12 +118,19 @@ export async function runMapping(
         samples: r.sampleValues,
       }));
 
-    const aiResults = await aiMatch(
-      needsAi.map(({ column, samples }) => ({ column, samples })),
-      uploadId,
-      alreadyMapped,
-      entityType
-    );
+    // AI is a best-effort enhancement layer. If the provider is down (e.g. 502),
+    // degrade gracefully to the exact/fuzzy results rather than failing the whole map.
+    let aiResults: Awaited<ReturnType<typeof aiMatch>> = {};
+    try {
+      aiResults = await aiMatch(
+        needsAi.map(({ column, samples }) => ({ column, samples })),
+        uploadId,
+        alreadyMapped,
+        entityType
+      );
+    } catch (err) {
+      console.error("AI column matching failed — using exact/fuzzy results only", err);
+    }
 
     // Apply AI results for previously-unmapped columns
     for (const { column, idx } of needsAi) {
