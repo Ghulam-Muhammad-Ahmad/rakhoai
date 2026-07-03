@@ -10,6 +10,9 @@ import {
   Menu, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useDebounced } from "@/components/ui/useDebounced";
+
+type SearchRow = { id: string; name: string; initials: string; externalId: string | null };
 
 const navItems = [
   { href: "/dashboard",     icon: LayoutDashboard,    label: "Risk overview" },
@@ -100,7 +103,22 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [initials, setInitials] = useState("");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchRow[]>([]);
+  const [open, setOpen] = useState(false);
+  const dq = useDebounced(query);
   const router = useRouter();
+
+  useEffect(() => {
+    const q = dq.trim();
+    if (!q) { setResults([]); return; }
+    let active = true;
+    fetch(`/api/students?q=${encodeURIComponent(q)}&perPage=6`)
+      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((d) => { if (active) setResults(d.rows ?? []); })
+      .catch(() => { if (active) setResults([]); });
+    return () => { active = false; };
+  }, [dq]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -124,7 +142,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
   }, []);
 
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-4 border-b border-[var(--neutral-100)] bg-white/85 px-4 py-3.5 backdrop-blur-[10px] sm:px-6 lg:px-8">
+    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--neutral-100)] bg-white/85 px-4 py-3.5 backdrop-blur-[10px] sm:gap-4 sm:px-6 lg:px-8">
       <button
         onClick={onMenu}
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[var(--neutral-200)] bg-white text-[var(--neutral-600)] lg:hidden"
@@ -132,17 +150,45 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       >
         <Menu size={18} />
       </button>
-      <div className="flex flex-1 max-w-[480px] items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--neutral-200)] bg-[var(--neutral-50)] px-3.5 py-[9px] text-sm text-[var(--neutral-500)]">
-        <Search size={16} />
-        <input
-          placeholder="Search students, centers, reports…"
-          className="flex-1 border-none bg-transparent text-sm text-[var(--neutral-800)] outline-none placeholder:text-[var(--neutral-400)]"
-          style={{ fontFamily: "inherit" }}
-        />
-        <span className="hidden font-mono text-[11px] text-[var(--neutral-400)] sm:inline">⌘ K</span>
+      <div className="relative flex min-w-0 flex-1 basis-0 max-sm:w-full sm:max-w-[480px]">
+        <div className="flex w-full min-w-0 items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--neutral-200)] bg-[var(--neutral-50)] px-3.5 py-[9px] text-sm text-[var(--neutral-500)]">
+          <Search size={16} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            placeholder="Search students…"
+            className="w-full min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--neutral-800)] outline-none placeholder:text-[var(--neutral-400)]"
+            style={{ fontFamily: "inherit" }}
+          />
+        </div>
+
+        {open && query.trim() && (
+          <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-80 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--neutral-200)] bg-white py-1 shadow-lg">
+            {results.length === 0 ? (
+              <div className="px-3.5 py-3 text-sm text-[var(--neutral-400)]">No students found.</div>
+            ) : (
+              results.map((s) => (
+                <button
+                  key={s.id}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => { setOpen(false); setQuery(""); router.push(`/students/${s.id}`); }}
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left hover:bg-[var(--neutral-50)]"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent-100)] text-[11px] font-semibold text-[var(--accent-700)]">{s.initials}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-medium text-[var(--neutral-800)]">{s.name}</span>
+                    <span className="block truncate text-[11px] text-[var(--neutral-500)]">{s.externalId ?? s.id}</span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="flex-1" />
+      <div className="hidden flex-1 lg:block" />
 
       <button
         onClick={async () => {
